@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Explore OmniDataEditor through an interactive team directory with dialog, inline and batch editing."
+    />
+    <meta name="theme-color" content="#183f35" />
+    <title>Team directory · OmniDataEditor Playground</title>
+    <script type="module" src="./main.ts"></script>
+  </head>
+  <body>
+    <svg
+      class="icon-definitions"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <symbol id="icon-grid" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </symbol>
+      <symbol id="icon-people" viewBox="0 0 24 24">
+        <circle cx="9" cy="8" r="3" />
+        <path
+          d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 5"
+        />
+      </symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24">
+        <path d="M5 12h14m-6-6 6 6-6 6" />
+      </symbol>
+      <symbol id="icon-code" viewBox="0 0 24 24">
+        <path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-14-2 18" />
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14" />
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m16 16 5 5" />
+      </symbol>
+      <symbol id="icon-edit" viewBox="0 0 24 24">
+        <path d="m14 5 5 5M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15l-1 5Z" />
+      </symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24">
+        <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" />
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path d="m5 12 4 4L19 6" />
+      </symbol>
+      <symbol id="icon-layers" viewBox="0 0 24 24">
+        <path d="m12 3 10 5-10 5L2 8l10-5Zm-10 9 10 5 10-5M2 17l10 5 10-5" />
+      </symbol>
+    </svg>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Playground navigation">
+        <a
+          class="brand"
+          href="/showcase/"
+          aria-label="OmniDataEditor playground home"
+        >
+          <span class="brand-mark" aria-hidden="true"
+            ><span></span><span></span><span></span><span></span
+          ></span>
+          <span>OmniData<span class="brand-editor">Editor</span></span>
+        </a>
+        <div class="workspace-label">
+          <span class="workspace-icon">O</span
+          ><span>Demo workspace<small>Make yourself at home</small></span
+          ><span class="workspace-dot" aria-hidden="true"></span>
+        </div>
+        <p class="nav-label">PLAYGROUND</p>
+        <nav aria-label="Playground sections">
+          <a class="nav-link active" href="/showcase/" aria-current="page"
+            ><svg class="icon"><use href="#icon-people" /></svg>Team
+            directory<span class="nav-count" id="nav-count">8</span></a
+          >
+          <a class="nav-link" href="#explore"
+            ><svg class="icon"><use href="#icon-grid" /></svg>Explore the
+            features</a
+          >
+          <a class="nav-link" href="#implementation"
+            ><svg class="icon"><use href="#icon-code" /></svg>How it works</a
+          >
+        </nav>
+        <p class="nav-label integration-label">MORE EXAMPLES</p>
+        <nav aria-label="Integration examples">
+          <a class="nav-link" href="/datatables-dialog/"
+            >DataTables<svg class="icon external">
+              <use href="#icon-arrow" /></svg
+          ></a>
+          <a class="nav-link" href="/tabulator-dialog/"
+            >Tabulator<svg class="icon external"><use href="#icon-arrow" /></svg
+          ></a>
+          <a class="nav-link" href="/async-select/"
+            >Async selection<svg class="icon external">
+              <use href="#icon-arrow" /></svg
+          ></a>
+        </nav>
+        <div class="sidebar-note">
+          <span class="note-symbol" aria-hidden="true">✳</span>
+          <h2>Your interface.<br />Our editing engine.</h2>
+          <p>Framework independent.<br />Designed to fit right in.</p>
+          <a href="/"
+            >All examples <svg class="icon"><use href="#icon-arrow" /></svg
+          ></a>
+        </div>
+        <div class="sidebar-footer">
+          <span class="version-dot"></span>OmniDataEditor <span>0.1.0</span>
+        </div>
+      </aside>
+      <div class="main-shell">
+        <header class="topbar">
+          <div class="breadcrumb">
+            Playground <span>/</span> <strong>Team directory</strong>
+          </div>
+          <span class="local-indicator"><span></span>Local demo</span
+          ><span class="profile-avatar" aria-label="Demo workspace">OD</span>
+        </header>
+        <main id="main">
+          <section class="page-intro" aria-labelledby="page-title">
+            <div>
+              <p class="eyebrow">
+                <span></span> A LITTLE DATA. A LOT OF POSSIBILITY.
+              </p>
+              <h1 id="page-title">
+                Meet your next<br /><em>editing experience.</em>
+              </h1>
+              <p class="intro-copy">
+                A familiar team directory. A flexible editing engine.<br
+                  class="desktop-break"
+                />
+                Try real changes, from a single cell to the whole team.
+              </p>
+            </div>
+            <div class="intro-actions">
+              <span class="sample-label">SAMPLE WORKSPACE</span
+              ><button type="button" class="button primary" id="add-member">
+                <svg class="icon"><use href="#icon-plus" /></svg>Add member</button
+              ><span class="local-note"
+                >Yours to explore. Resets on reload.</span
+              >
+            </div>
+          </section>
+          <section class="metrics" aria-label="Team overview">
+            <div class="metric">
+              <span class="metric-icon sage"
+                ><svg class="icon"><use href="#icon-people" /></svg
+              ></span>
+              <div>
+                <span class="metric-label">Team members</span
+                ><strong id="member-count">8</strong>
+              </div>
+              <span class="metric-caption">Good people, great work</span>
+            </div>
+            <div class="metric">
+              <span class="metric-icon sand"
+                ><svg class="icon"><use href="#icon-grid" /></svg
+              ></span>
+              <div>
+                <span class="metric-label">Departments</span
+                ><strong id="department-count">4</strong>
+              </div>
+              <span class="metric-caption">Better together</span>
+            </div>
+            <div class="metric">
+              <span class="metric-icon lavender"
+                ><svg class="icon"><use href="#icon-layers" /></svg
+              ></span>
+              <div>
+                <span class="metric-label">Annual payroll</span
+                ><strong id="payroll">$870,000</strong>
+              </div>
+              <span class="metric-caption">Updates as you edit</span>
+            </div>
+          </section>
+          <section class="directory" aria-labelledby="directory-title">
+            <div class="directory-heading">
+              <div>
+                <h2 id="directory-title">
+                  The team <span id="directory-count">8 members</span>
+                </h2>
+                <p>A little room for everyone to do their best work.</p>
+              </div>
+              <span class="host-label"
+                >Powered by <strong>DataTables</strong></span
+              >
+            </div>
+            <div
+              class="directory-tabs"
+              role="group"
+              aria-label="Filter members by status"
+            >
+              <button
+                type="button"
+                class="status-tab"
+                data-status=""
+                aria-pressed="true"
+              >
+                All members <span id="all-count">8</span></button
+              ><button
+                type="button"
+                class="status-tab"
+                data-status="Active"
+                aria-pressed="false"
+              >
+                Active <span id="active-count">6</span></button
+              ><button
+                type="button"
+                class="status-tab"
+                data-status="On leave"
+                aria-pressed="false"
+              >
+                On leave <span id="leave-count">2</span></button
+              ><span class="table-tip"
+                ><svg class="icon"><use href="#icon-edit" /></svg>Click a salary
+                to edit in place</span
+              >
+            </div>
+            <div class="table-toolbar">
+              <label class="search"
+                ><svg class="icon"><use href="#icon-search" /></svg
+                ><input
+                  id="search"
+                  type="search"
+                  placeholder="Search your team…"
+                  aria-label="Search members" /></label
+              ><label class="department-filter"
+                ><span class="sr-only">Filter by department</span
+                ><select id="department-filter">
+                  <option value="">All departments</option>
+                  <option>Design</option>
+                  <option>Engineering</option>
+                  <option>Marketing</option>
+                  <option>Operations</option>
+                </select></label
+              >
+              <div class="selection-actions">
+                <button
+                  type="button"
+                  class="button secondary"
+                  id="edit-selected"
+                  disabled
+                >
+                  <svg class="icon"><use href="#icon-edit" /></svg
+                  ><span>Edit selected</span></button
+                ><button
+                  type="button"
+                  class="button icon-button danger"
+                  id="remove-selected"
+                  aria-label="Remove selected member"
+                  title="Remove selected member"
+                  disabled
+                >
+                  <svg class="icon"><use href="#icon-trash" /></svg>
+                </button>
+              </div>
+            </div>
+            <div
+              class="table-scroll"
+              role="region"
+              aria-label="Team directory table"
+              tabindex="0"
+            >
+              <table id="members">
+                <caption class="sr-only">
+                  Sample team members. Select members for batch editing or click
+                  a salary to edit it in place.
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">
+                      <input
+                        id="select-all"
+                        type="checkbox"
+                        aria-label="Select all visible members"
+                      />
+                    </th>
+                    <th scope="col">Member</th>
+                    <th scope="col">Department</th>
+                    <th scope="col">Office</th>
+                    <th scope="col">Annual salary</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+            <div class="directory-footer">
+              <span id="table-summary">Showing 8 members</span
+              ><span
+                ><span class="footer-dot"></span>Sample data · Stored in
+                memory</span
+              >
+            </div>
+          </section>
+          <div class="below-grid">
+            <section
+              class="explore-panel"
+              id="explore"
+              aria-labelledby="explore-title"
+            >
+              <div class="section-heading">
+                <p class="eyebrow">TAKE IT FOR A SPIN</p>
+                <h2 id="explore-title">
+                  Small interactions. Big possibilities.
+                </h2>
+              </div>
+              <div class="feature-list">
+                <button type="button" class="feature" id="try-dialog">
+                  <span class="feature-number">01</span
+                  ><span
+                    ><strong>Make it personal</strong
+                    ><span
+                      >Open a member, change a detail, and save.</span
+                    ></span
+                  ><svg class="icon"><use href="#icon-arrow" /></svg></button
+                ><button type="button" class="feature" id="try-inline">
+                  <span class="feature-number">02</span
+                  ><span
+                    ><strong>Stay in the flow</strong
+                    ><span>Edit a salary right where it lives.</span></span
+                  ><svg class="icon"><use href="#icon-arrow" /></svg></button
+                ><button type="button" class="feature" id="try-batch">
+                  <span class="feature-number">03</span
+                  ><span
+                    ><strong>Bring everyone along</strong
+                    ><span>Update two members in one shared form.</span></span
+                  ><svg class="icon"><use href="#icon-arrow" /></svg>
+                </button>
+              </div>
+            </section>
+            <section class="activity-panel" aria-labelledby="activity-title">
+              <div class="activity-heading">
+                <h2 id="activity-title">Behind the interaction</h2>
+                <span class="live-badge"><span></span>LIVE</span>
+              </div>
+              <p class="activity-description">
+                Real editor events, as they happen.
+              </p>
+              <ol
+                id="activity-list"
+                aria-live="polite"
+                aria-relevant="additions"
+              >
+                <li class="activity-empty">
+                  <span class="activity-marker"></span>
+                  <div>
+                    <strong>Ready when you are</strong>
+                    <p>Make a change to see the editor in action.</p>
+                  </div>
+                  <span class="activity-time">Now</span>
+                </li>
+              </ol>
+              <div class="activity-footer">
+                <svg class="icon"><use href="#icon-check" /></svg>Validate.
+                Save. Reflect in your interface.
+              </div>
+            </section>
+          </div>
+          <section
+            class="implementation"
+            id="implementation"
+            aria-labelledby="implementation-title"
+          >
+            <div>
+              <p class="eyebrow">ONE ENGINE. YOUR POSSIBILITIES.</p>
+              <h2 id="implementation-title">
+                Bring your data.<br />Keep your interface.
+              </h2>
+              <p>
+                This page connects the public editor packages to a real
+                DataTables host. Dialogs, inline forms and asynchronous office
+                options share one editing runtime.
+              </p>
+              <a href="/standalone/"
+                >Explore the standalone example
+                <svg class="icon"><use href="#icon-arrow" /></svg
+              ></a>
+            </div>
+            <div class="code-window">
+              <div class="code-title">
+                <span></span><span></span><span></span
+                ><small>your-app.ts</small>
+              </div>
+              <pre><code><span class="code-muted">// A small API. Room to make it yours.</span>
+<span class="code-purple">const</span> editor = <span class="code-mint">createEditor</span>({
+  fields,
+  identity: member =&gt; member.id,
+  persistence,
+});
+
+editor.<span class="code-mint">attach</span>(<span class="code-mint">dataTablesHost</span>(table, { identity }));
+editor.<span class="code-mint">use</span>(<span class="code-mint">dialog</span>({ fields }));
+editor.<span class="code-mint">edit</span>(member);</code></pre>
+            </div>
+          </section>
+          <footer class="page-footer">
+            <span
+              >OmniDataEditor <span class="footer-separator">/</span> An editing
+              engine, with room for your ideas.</span
+            ><a href="/"
+              >Browse all examples
+              <svg class="icon"><use href="#icon-arrow" /></svg
+            ></a>
+          </footer>
+        </main>
+      </div>
+    </div>
+    <div
+      class="toast"
+      id="notification"
+      role="status"
+      aria-live="polite"
+      hidden
+    ></div>
+  </body>
+</html>

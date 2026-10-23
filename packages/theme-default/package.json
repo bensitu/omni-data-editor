@@ -1,0 +1,21 @@
+{
+  "name": "@omnidataeditor/theme-default",
+  "version": "0.1.0",
+  "private": false,
+  "description": "OmniDataEditor theme default",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    "./styles.css": "./styles.css"
+  },
+  "files": [
+    "styles.css",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {},
+  "dependencies": {}
+}

@@ -1,0 +1,32 @@
+{
+  "name": "@omnidataeditor/host-tabulator",
+  "version": "0.1.0",
+  "private": false,
+  "description": "OmniDataEditor host tabulator",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@omnidataeditor/core": "workspace:^",
+    "@omnidataeditor/dom": "workspace:^",
+    "@types/tabulator-tables": "^6.3.6"
+  },
+  "peerDependencies": {
+    "tabulator-tables": "^6.7.0"
+  }
+}
