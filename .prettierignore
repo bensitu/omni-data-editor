@@ -1,0 +1,17 @@
+node_modules
+dist
+.cache
+pnpm-lock.yaml
+OmniDataEditor_*.md
+IMPLEMENTATION_STATUS.md
+docs/internal
+docs/decisions
+docs/architecture
+docs/implementation
+docs/delivery.md
+docs/migration.md
+docs/release.md
+docs/public/api
+docs/.vitepress/cache
+docs/.vitepress/dist
+.vitest

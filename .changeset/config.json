@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [
+    [
+      "@omnidataeditor/core",
+      "@omnidataeditor/dom",
+      "@omnidataeditor/presentation-dialog",
+      "@omnidataeditor/theme-default",
+      "@omnidataeditor/editor",
+      "@omnidataeditor/host-datatables",
+      "@omnidataeditor/presentation-inline",
+      "@omnidataeditor/host-tabulator",
+      "@omnidataeditor/field-async-select"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "packages/core",
+    "packages/dom",
+    "packages/editor",
+    "packages/presentation-dialog",
+    "packages/presentation-inline",
+    "packages/host-datatables",
+    "packages/host-tabulator",
+    "packages/field-async-select"
+  ],
+  "entryPointStrategy": "packages",
+  "out": "docs/public/api",
+  "name": "OmniDataEditor API",
+  "includeVersion": true,
+  "disableGit": true,
+  "packageOptions": {
+    "entryPoints": ["src/index.ts"],
+    "disableSources": true
+  }
+}
