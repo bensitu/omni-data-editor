@@ -12,6 +12,8 @@ The development server includes the team directory at `/showcase/` and focused i
 
 `pnpm verify` checks formatting, lint, types, behavior, package distribution, consumer builds and documentation. Use the relevant individual commands during development. `pnpm docs:api` generates the API reference, `pnpm docs:build` builds the documentation, and `pnpm package:pages` builds the combined documentation and examples site.
 
+CI runs source and package checks alongside browser integration tests. Browser tests use the official Playwright container, including its browser binaries and system dependencies. Update the container version and digest in `.github/workflows/checks.yml` when updating Playwright. Release drafts reuse these same checks before preparing archives.
+
 Keep core independent of browser, framework and host packages. Extend behavior through fields, renderers, presentations, host capabilities and persistence ports. Preserve canonical data, immutable entity semantics, revision scoped validation and uncertain mutation reconciliation.
 
 Use English for comments and descriptive terminology for public interfaces. Add focused behavior tests for consequential changes. Update the relevant usage guides and add a Changeset when a change affects package consumers. Exclude credentials, generated output and machine-specific configuration from contributions.

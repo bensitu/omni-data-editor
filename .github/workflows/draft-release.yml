@@ -16,7 +16,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  checks:
+    name: Check release source
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/checks.yml
   draft:
+    needs: checks
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -41,10 +46,8 @@ jobs:
         env:
           RELEASE_VERSION: ${{ inputs.version }}
         run: node scripts/prepare-release.mjs --check-version --version="$RELEASE_VERSION"
-      - name: Install browser engines
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
-      - name: Verify source and packages
-        run: pnpm verify
+      - name: Build release packages
+        run: pnpm build
       - name: Prepare immutable release artifacts
         env:
           RELEASE_VERSION: ${{ inputs.version }}
