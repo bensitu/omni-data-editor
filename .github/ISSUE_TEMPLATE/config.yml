@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation and support
+    url: https://github.com/bensitu/omni-data-editor/blob/main/SUPPORT.md
+    about: Find usage guides, integration help and reporting guidance.
+  - name: Security policy
+    url: https://github.com/bensitu/omni-data-editor/security/policy
+    about: Read the private vulnerability reporting process before sharing security details.

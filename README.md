@@ -65,4 +65,12 @@ The intended browser policy covers current stable and the preceding two major re
 
 Source is organized into `packages/`, `examples/`, `tests/`, `docs/` and `scripts/`. Public package documentation, examples and automated checks are included in the repository.
 
+## Project resources
+
+- [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md)
+
 Licensed under [MIT](LICENSE).

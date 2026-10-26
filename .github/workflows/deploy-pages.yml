@@ -11,6 +11,12 @@ on:
       - package.json
       - pnpm-lock.yaml
       - typedoc.json
+      - README.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
+      - CODE_OF_CONDUCT.md
+      - SECURITY.md
+      - SUPPORT.md
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
 

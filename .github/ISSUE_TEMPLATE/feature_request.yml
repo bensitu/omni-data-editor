@@ -1,0 +1,27 @@
+name: Feature request
+description: Describe a use case or improvement to the public library.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Explain the task you are trying to accomplish and the limitation you encounter.
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: Suggested change
+      description: Describe the behavior or capability that would address the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Existing approaches
+      description: Describe any public APIs, extensions or application-level solutions you have considered.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Include relevant package names or examples using synthetic data.

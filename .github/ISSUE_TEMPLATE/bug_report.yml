@@ -1,0 +1,40 @@
+name: Bug report
+description: Report reproducible unexpected behavior.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. Use synthetic data and remove credentials and personal information from examples and logs. Report vulnerabilities privately using the security policy.
+  - type: input
+    id: version
+    attributes:
+      label: Package versions
+      description: Include the exact versions of the OmniDataEditor packages involved.
+      placeholder: '@omnidataeditor/editor 0.1.0'
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem description
+      description: Explain what happened and what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide a minimal example or repository and the steps needed to reproduce the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include browser, operating system, Node.js, TypeScript and DataTables or Tabulator versions where relevant.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Relevant diagnostics
+      description: Include concise error messages or logs with sensitive information removed.
+      render: text
