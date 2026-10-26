@@ -9,4 +9,4 @@ editor.use(dialog({ fields, title: 'Edit entity' }));
 
 Pass the registered field definitions and optional renderer registry. Dialog rendering requires a browser.
 
-Part of OmniDataEditor. ESM distribution under the MIT license. Usage and integration documentation is available in the source repository's docs directory.
+Part of OmniDataEditor. ESM distribution under the MIT license. See the [documentation](https://bensitu.github.io/omni-data-editor/) and [dialog usage](https://bensitu.github.io/omni-data-editor/guide/getting-started).

@@ -56,9 +56,9 @@ export default defineConfig({
       {
         text: 'Reference',
         items: [
-          { text: 'Compatibility', link: '/support' },
-          { text: 'Accessibility', link: '/accessibility' },
-          { text: 'Security', link: '/security' },
+          { text: 'Compatibility', link: '/reference/compatibility' },
+          { text: 'Accessibility', link: '/reference/accessibility' },
+          { text: 'Security', link: '/reference/security' },
         ],
       },
     ],

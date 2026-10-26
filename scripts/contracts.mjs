@@ -1,8 +1,11 @@
-import { mkdir, copyFile, writeFile } from 'node:fs/promises';
+import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
 import { run as execute } from './process.mjs';
 import { resolve } from 'node:path';
 const run = (args, cwd = process.cwd()) => execute('pnpm', args, cwd);
 const target = resolve('.cache/contracts');
+const { version } = JSON.parse(
+  await readFile('packages/core/package.json', 'utf8'),
+);
 await mkdir(target, { recursive: true });
 run(['--filter', '@omnidataeditor/core', 'pack', '--pack-destination', target]);
 await writeFile(
@@ -11,7 +14,7 @@ await writeFile(
     private: true,
     type: 'module',
     dependencies: {
-      '@omnidataeditor/core': 'file:./omnidataeditor-core-0.1.0.tgz',
+      '@omnidataeditor/core': `file:./omnidataeditor-core-${version}.tgz`,
     },
   }),
 );

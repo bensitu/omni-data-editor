@@ -18,4 +18,4 @@ import '@omnidataeditor/theme-default/styles.css';
 
 Host integrations and asynchronous selection are separate optional packages. The facade contains no independent runtime.
 
-Part of OmniDataEditor. ESM distribution under the MIT license. Usage and integration documentation is available in the source repository's docs directory.
+Part of OmniDataEditor. ESM distribution under the MIT license. See the [documentation](https://bensitu.github.io/omni-data-editor/) and [getting started guide](https://bensitu.github.io/omni-data-editor/guide/getting-started).

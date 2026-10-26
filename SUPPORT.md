@@ -2,9 +2,9 @@
 
 ## Documentation and examples
 
-Start with the [README](README.md), [getting started guide](docs/guide/getting-started.md) and [interactive playground guide](docs/guide/playground.md). The repository includes focused examples for standalone editing, DataTables, Tabulator, inline editing and asynchronous selection.
+Start with the [documentation](docs/index.md). It links to the getting started guide, interactive playground and focused examples for standalone editing, DataTables, Tabulator, inline editing and asynchronous selection.
 
-See [compatibility](docs/support.md) for runtime and host requirements and the [changelog](CHANGELOG.md) for notable changes. Public exports are the supported integration boundary; source deep imports are not supported.
+See [compatibility](docs/reference/compatibility.md) for runtime and host requirements and the [changelog](CHANGELOG.md) for notable changes. Public exports are the supported integration boundary; source deep imports are not supported.
 
 ## Questions
 

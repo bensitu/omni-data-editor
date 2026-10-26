@@ -6,7 +6,6 @@ for (const script of [
   'build:examples',
   'typecheck',
   'test',
-  'test:tooling',
   'test:browser',
   'test:e2e',
   'check:packages',

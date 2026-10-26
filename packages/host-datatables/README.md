@@ -9,4 +9,4 @@ editor.attach(dataTablesHost(table, { identity: (entity) => entity.id }));
 
 DataTables is a peer dependency. Selection requires its separately configured Select extension. Canonical updates replace complete objects.
 
-Part of OmniDataEditor. ESM distribution under the MIT license. Usage and integration documentation is available in the source repository's docs directory.
+Part of OmniDataEditor. ESM distribution under the MIT license. See the [documentation](https://bensitu.github.io/omni-data-editor/) and [DataTables guide](https://bensitu.github.io/omni-data-editor/guide/datatables).
