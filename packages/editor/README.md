@@ -2,6 +2,10 @@
 
 Common OmniDataEditor factories and types.
 
+```sh
+pnpm add @omnidataeditor/editor @omnidataeditor/theme-default
+```
+
 ```ts
 import {
   createEditor,

@@ -20,6 +20,12 @@ Focused examples are available at `/standalone/`, `/datatables-dialog/`, `/datat
 
 ## Usage
 
+Install the common entry point and the default theme as direct dependencies:
+
+```sh
+pnpm add @omnidataeditor/editor @omnidataeditor/theme-default
+```
+
 ```ts
 import { createEditor, textField, dialog } from '@omnidataeditor/editor';
 import '@omnidataeditor/theme-default/styles.css';
@@ -67,6 +73,8 @@ Source is organized into `packages/`, `examples/`, `tests/`, `docs/` and `script
 
 ## Project resources
 
+- [Documentation](https://bensitu.github.io/omni-data-editor/)
+- [Live playground](https://bensitu.github.io/omni-data-editor/examples/showcase/)
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
 - [Support](SUPPORT.md)
