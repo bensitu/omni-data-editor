@@ -6,4 +6,3 @@
 
 - Provide common public factories for entity editing, native forms and dialog presentation.
 - Document direct installation of the optional theme alongside the editor.
-- Include public repository metadata, a packaged changelog and provenance publication settings.

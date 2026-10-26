@@ -10,7 +10,7 @@ body:
     attributes:
       label: Package versions
       description: Include the exact versions of the OmniDataEditor packages involved.
-      placeholder: '@omnidataeditor/editor 0.1.0'
+      placeholder: Package name and exact installed version
     validations:
       required: true
   - type: textarea

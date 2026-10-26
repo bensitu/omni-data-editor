@@ -26,7 +26,6 @@
     "release:draft": "node scripts/draft-release.mjs",
     "release:publish-artifacts": "node scripts/publish-release-artifacts.mjs",
     "version:packages": "changeset version",
-    "test:tooling": "node --test tests/tooling/*.test.mjs",
     "package:pages": "node scripts/package-pages-site.mjs"
   },
   "devDependencies": {

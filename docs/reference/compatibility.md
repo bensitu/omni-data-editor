@@ -14,7 +14,7 @@ Supply a stable identity when connecting existing entities to hosts. Mutable cla
 
 Inline editing requires an available field anchor and focus capabilities. Offscreen virtualized anchors need application activation before inline editing. Search, sorting, filtering and pagination remain responsibilities of the host application.
 
-Applications provide server authorization, concurrency preconditions, idempotency and authoritative reconciliation. Abort signals isolate stale work; they do not imply that a dispatched mutation was rolled back. See [persistence](./guide/persistence.md) and [conflicts](./guide/conflicts.md).
+Applications provide server authorization, concurrency preconditions, idempotency and authoritative reconciliation. Abort signals isolate stale work; they do not imply that a dispatched mutation was rolled back. See [persistence](../guide/persistence.md) and [conflicts](../guide/conflicts.md).
 
 ## Package versions
 

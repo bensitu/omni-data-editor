@@ -9,12 +9,12 @@ import {
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { run } from './process.mjs';
-import { releaseNotes } from './release-notes.mjs';
 import {
   archiveName,
   capture,
   integrity,
   readPackages,
+  releaseNotes,
   repository,
   sha256,
   validatePackages,
@@ -33,10 +33,6 @@ const tag = `v${version}`;
 const notes = releaseNotes({
   version,
   changelog: await readFile('CHANGELOG.md', 'utf8'),
-  introduction:
-    version === '0.1.0'
-      ? await readFile('.github/release-notes/0.1.0.md', 'utf8')
-      : undefined,
 });
 if (process.env.GITHUB_OUTPUT)
   await appendFile(

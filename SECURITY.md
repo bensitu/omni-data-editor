@@ -21,4 +21,4 @@ Coordinate public disclosure with the maintainers so a correction and upgrade gu
 
 ## Application responsibilities
 
-Applications provide authentication, authorization, server-side validation, concurrency controls and idempotency. Field visibility, disabled controls and read-only presentation are not authorization mechanisms. Custom renderers must preserve safe rendering and appropriate focus ownership. See the [security guide](docs/security.md) for integration boundaries.
+Applications provide authentication, authorization, server-side validation, concurrency controls and idempotency. Field visibility, disabled controls and read-only presentation are not authorization mechanisms. Custom renderers must preserve safe rendering and appropriate focus ownership. See the [security guide](docs/reference/security.md) for integration boundaries.
