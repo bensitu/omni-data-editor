@@ -14,7 +14,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "sideEffects": false,
   "scripts": {
@@ -28,5 +29,18 @@
   },
   "peerDependencies": {
     "tabulator-tables": "^6.7.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bensitu/omni-data-editor.git",
+    "directory": "packages/host-tabulator"
+  },
+  "homepage": "https://github.com/bensitu/omni-data-editor#readme",
+  "bugs": {
+    "url": "https://github.com/bensitu/omni-data-editor/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }
