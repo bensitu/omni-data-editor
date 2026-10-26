@@ -14,6 +14,50 @@ import {
   verifyReleaseArtifacts,
 } from './release-utils.mjs';
 
+const registry = 'https://registry.npmjs.org';
+
+export async function inspectPublishedArtifact(artifact, tag) {
+  const name = encodeURIComponent(artifact.name);
+  const [versionResponse, tagsResponse] = await Promise.all(
+    [
+      `${registry}/${name}/${encodeURIComponent(artifact.version)}`,
+      `${registry}/-/package/${name}/dist-tags`,
+    ].map((url) =>
+      globalThis.fetch(url, {
+        headers: { 'Cache-Control': 'no-cache' },
+        signal: globalThis.AbortSignal.timeout(30000),
+      }),
+    ),
+  );
+  if (!versionResponse.ok && versionResponse.status !== 404)
+    throw new Error(
+      `npm version lookup failed with HTTP ${versionResponse.status}.`,
+    );
+  // Unpublished packages can return 401 from the distribution-tag endpoint.
+  if (
+    !tagsResponse.ok &&
+    tagsResponse.status !== 404 &&
+    !(versionResponse.status === 404 && tagsResponse.status === 401)
+  )
+    throw new Error(
+      `npm distribution-tag lookup failed with HTTP ${tagsResponse.status}.`,
+    );
+  const tags = tagsResponse.ok ? await tagsResponse.json() : {};
+  const taggedVersion = tags[tag];
+  if (taggedVersion && gt(taggedVersion, artifact.version))
+    throw new Error(
+      `Distribution tag ${tag} already points to a newer version of ${artifact.name}.`,
+    );
+  if (versionResponse.status === 404) return null;
+  const metadata = await versionResponse.json();
+  return {
+    name: metadata.name,
+    version: metadata.version,
+    integrity: metadata.dist?.integrity,
+    tagVersion: taggedVersion,
+  };
+}
+
 export function verifyPublishedArtifact(artifact, metadata, tag) {
   if (
     !metadata ||
@@ -32,7 +76,7 @@ export function verifyPublishedArtifact(artifact, metadata, tag) {
 
 export async function publishReleaseArtifacts(
   artifacts,
-  { inspect, publish, tag, wait = delay, attempts = 12, onStatus = () => {} },
+  { inspect, publish, tag, wait = delay, attempts = 61, onStatus = () => {} },
 ) {
   if (
     !artifacts.length ||
@@ -41,31 +85,40 @@ export async function publishReleaseArtifacts(
     throw new Error('Release packages must be nonempty and unique.');
   const existing = await Promise.all(artifacts.map(inspect));
   existing.forEach((metadata, index) => {
-    if (metadata) verifyPublishedArtifact(artifacts[index], metadata, tag);
+    if (metadata)
+      verifyPublishedArtifact(
+        artifacts[index],
+        metadata,
+        metadata.tagVersion === undefined ? undefined : tag,
+      );
   });
-  async function verifyAvailable(artifact) {
-    for (let attempt = 0; attempt < attempts; attempt++) {
-      const metadata = await inspect(artifact);
-      if (metadata) {
-        verifyPublishedArtifact(artifact, metadata);
-        if (metadata.tagVersion === artifact.version) return;
-      }
-      if (attempt + 1 < attempts) await wait(5000);
-    }
-    throw new Error(
-      `The published version and distribution tag are not available: ${artifact.name}.`,
-    );
-  }
   for (let index = 0; index < artifacts.length; index++) {
     const artifact = artifacts[index];
-    if (existing[index]) onStatus(artifact, 'already verified');
+    if (existing[index]) onStatus(artifact, 'archive already matches');
     else {
       await publish(artifact);
-      await verifyAvailable(artifact);
-      onStatus(artifact, 'published');
+      onStatus(artifact, 'submitted');
     }
   }
-  for (const artifact of artifacts) await verifyAvailable(artifact);
+  let pending = [...artifacts];
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const metadata = await Promise.all(pending.map(inspect));
+    pending = pending.filter((artifact, index) => {
+      if (!metadata[index]) return true;
+      verifyPublishedArtifact(artifact, metadata[index]);
+      if (metadata[index].tagVersion !== artifact.version) return true;
+      onStatus(artifact, 'verified');
+      return false;
+    });
+    if (!pending.length) return;
+    if (attempt % 6 === 0)
+      for (const artifact of pending)
+        onStatus(artifact, 'waiting for npm registry processing');
+    if (attempt + 1 < attempts) await wait(10000);
+  }
+  throw new Error(
+    `npm registry processing has not completed for: ${pending.map((item) => `${item.name}@${item.version}`).join(', ')}. Retry the same release after these versions become available.`,
+  );
 }
 
 async function publishCli() {
@@ -136,35 +189,8 @@ async function publishCli() {
     version,
     commit,
   );
-  const registry = 'https://registry.npmjs.org';
-  async function inspect(artifact) {
-    const response = await globalThis.fetch(
-      `${registry}/${encodeURIComponent(artifact.name)}`,
-      { signal: globalThis.AbortSignal.timeout(30000) },
-    );
-    if (response.status === 404) return null;
-    if (!response.ok)
-      throw new Error(
-        `npm registry lookup failed with HTTP ${response.status}.`,
-      );
-    const document = await response.json();
-    const taggedVersion = document['dist-tags']?.[tag];
-    if (taggedVersion && gt(taggedVersion, artifact.version))
-      throw new Error(
-        `Distribution tag ${tag} already points to a newer version of ${artifact.name}.`,
-      );
-    const metadata = document.versions?.[artifact.version];
-    return metadata
-      ? {
-          name: metadata.name,
-          version: metadata.version,
-          integrity: metadata.dist?.integrity,
-          tagVersion: document['dist-tags']?.[tag],
-        }
-      : null;
-  }
   await publishReleaseArtifacts(artifacts, {
-    inspect,
+    inspect: (artifact) => inspectPublishedArtifact(artifact, tag),
     tag,
     publish: async (artifact) => {
       run('npm', [
