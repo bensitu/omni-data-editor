@@ -14,6 +14,79 @@ import {
 } from '../../scripts/release-utils.mjs';
 import { publishReleaseArtifacts } from '../../scripts/publish-release-artifacts.mjs';
 import { run } from '../../scripts/process.mjs';
+import { releaseNotes } from '../../scripts/release-notes.mjs';
+
+test('uses the first-release introduction and version-specific changelog notes thereafter', () => {
+  const changelog = `# Changelog
+
+## [Unreleased]
+
+### Added
+- A future feature.
+
+## [0.2.0] - 2026-11-10
+
+### Fixed
+- Fix [selection][selection].
+
+## [0.1.0] - 2026-10-27
+
+### Added
+- Initial editing support.
+
+[selection]: https://example.com/selection
+`;
+  assert.equal(
+    releaseNotes({
+      version: 'v0.1.0',
+      changelog,
+      introduction: '# Welcome\n\nTry the editor.\n',
+    }),
+    '# Welcome\n\nTry the editor.\n',
+  );
+  const notes = releaseNotes({
+    version: '0.2.0',
+    changelog,
+    introduction: 'Unused introduction',
+  });
+  assert.match(notes, /^# v0\.2\.0\n\n### Fixed/);
+  assert.match(notes, /Fix \[selection\]\[selection\]/);
+  assert.match(notes, /\[selection\]: https:\/\/example\.com\/selection/);
+  assert.doesNotMatch(
+    notes,
+    /future feature|Initial editing support|Unused introduction/,
+  );
+  assert.equal(
+    releaseNotes({
+      version: '0.2.0',
+      changelog: changelog.replaceAll('\n', '\r\n'),
+    }),
+    notes,
+  );
+});
+
+test('rejects missing, empty or ambiguous release documentation', () => {
+  const entry = '## [0.1.0] - 2026-10-27\n\n### Added\n- Editing support.\n';
+  assert.throws(
+    () => releaseNotes({ version: '0.1.0', changelog: entry }),
+    /introductory release notes/i,
+  );
+  for (const changelog of [
+    '',
+    '## [0.1.0]\n- Undated.',
+    entry + entry,
+    '## [0.1.0] - 2026-10-27\n\n[0.1.0]: https://example.com/release',
+  ])
+    assert.throws(
+      () =>
+        releaseNotes({
+          version: '0.1.0',
+          changelog,
+          introduction: '# Welcome',
+        }),
+      /changelog/i,
+    );
+});
 
 test('validates complete versions and distribution tags', () => {
   assert.equal(releaseVersion('v0.1.0'), '0.1.0');

@@ -13,6 +13,12 @@ on:
         type: choice
         default: latest
         options: [latest, next, alpha, beta, rc]
+      authentication:
+        description: Use an npm token for first publication; otherwise use trusted publishing
+        required: true
+        type: choice
+        default: trusted-publishing
+        options: [trusted-publishing, npm-token]
 
 permissions:
   contents: read
@@ -46,10 +52,20 @@ jobs:
         run: npm install --global npm@11.15.0 pnpm@11.25.0
       - name: Install tooling dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check first-publication credentials
+        if: inputs.authentication == 'npm-token'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo 'Create the NPM_TOKEN secret in the npm environment before choosing npm-token authentication.' >&2
+            exit 1
+          fi
       - name: Verify and publish original release archives
         env:
           RELEASE_VERSION: ${{ inputs.version }}
           RELEASE_NPM_TAG: ${{ inputs.npm_tag }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          NODE_AUTH_TOKEN: ${{ inputs.authentication == 'npm-token' && secrets.NPM_TOKEN || '' }}
         run: pnpm release:publish-artifacts --version="$RELEASE_VERSION" --tag="$RELEASE_NPM_TAG"

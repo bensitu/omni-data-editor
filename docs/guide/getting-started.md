@@ -1,6 +1,12 @@
 # Getting started
 
-Install `@omnidataeditor/editor` with an ESM capable package manager. The entry point includes common core helpers, renderer utilities and native dialog presentation. Import styles explicitly:
+Install `@omnidataeditor/editor` and the optional default theme with an ESM capable package manager. Declare both as direct dependencies when importing the theme stylesheet:
+
+```sh
+pnpm add @omnidataeditor/editor @omnidataeditor/theme-default
+```
+
+The editor entry point includes common core helpers, renderer utilities and native dialog presentation. Import styles explicitly:
 
 ```ts
 import { createEditor, textField, dialog } from '@omnidataeditor/editor';

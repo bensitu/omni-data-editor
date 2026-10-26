@@ -9,6 +9,7 @@ import {
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { run } from './process.mjs';
+import { releaseNotes } from './release-notes.mjs';
 import {
   archiveName,
   capture,
@@ -29,6 +30,14 @@ const { values } = parseArgs({
 const packages = await readPackages();
 const version = validatePackages(packages, values.version);
 const tag = `v${version}`;
+const notes = releaseNotes({
+  version,
+  changelog: await readFile('CHANGELOG.md', 'utf8'),
+  introduction:
+    version === '0.1.0'
+      ? await readFile('.github/release-notes/0.1.0.md', 'utf8')
+      : undefined,
+});
 if (process.env.GITHUB_OUTPUT)
   await appendFile(
     process.env.GITHUB_OUTPUT,
@@ -51,7 +60,6 @@ if (values['check-version']) {
       await unlink(resolve(destination, entry.name));
   }
   const artifacts = [];
-  const notes = [`# ${tag}`, ''];
   for (const item of packages) {
     const changelog = await readFile(
       `packages/${item.directory}/CHANGELOG.md`,
@@ -65,12 +73,6 @@ if (values['check-version']) {
       throw new Error(
         `Package changelog has no release notes for ${item.name}@${version}.`,
       );
-    notes.push(
-      `## ${item.name}`,
-      '',
-      section.slice(section.indexOf('\n') + 1).trim(),
-      '',
-    );
     run(
       'pnpm',
       [
@@ -111,7 +113,7 @@ if (values['check-version']) {
       .sort()
       .join('\n') + '\n',
   );
-  await writeFile(resolve(destination, 'release-notes.md'), notes.join('\n'));
+  await writeFile(resolve(destination, 'release-notes.md'), notes);
   await verifyReleaseArtifacts(destination, manifest, packages, version);
   console.log(
     `Prepared and verified ${artifacts.length} release archives in ${destination}.`,
