@@ -11,11 +11,25 @@
   "files": [
     "styles.css",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "sideEffects": [
     "**/*.css"
   ],
   "scripts": {},
-  "dependencies": {}
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bensitu/omni-data-editor.git",
+    "directory": "packages/theme-default"
+  },
+  "homepage": "https://github.com/bensitu/omni-data-editor#readme",
+  "bugs": {
+    "url": "https://github.com/bensitu/omni-data-editor/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

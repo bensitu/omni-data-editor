@@ -14,7 +14,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "sideEffects": false,
   "scripts": {
@@ -27,5 +28,18 @@
     "@omnidataeditor/presentation-dialog": "workspace:^",
     "@omnidataeditor/theme-default": "workspace:^",
     "@omnidataeditor/presentation-inline": "workspace:^"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bensitu/omni-data-editor.git",
+    "directory": "packages/editor"
+  },
+  "homepage": "https://github.com/bensitu/omni-data-editor#readme",
+  "bugs": {
+    "url": "https://github.com/bensitu/omni-data-editor/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

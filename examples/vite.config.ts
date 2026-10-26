@@ -13,6 +13,7 @@ const pages = [
 ];
 
 export default defineConfig({
+  base: process.env.OMNIDATAEDITOR_EXAMPLES_BASE ?? '/',
   build: {
     outDir: '../dist/examples',
     emptyOutDir: true,

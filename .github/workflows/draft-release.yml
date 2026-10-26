@@ -1,0 +1,57 @@
+name: Draft GitHub release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Synchronized package version, with an optional v prefix
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: draft-release
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install repository package manager
+        run: npm install --global pnpm@11.25.0
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Validate synchronized release version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/prepare-release.mjs --check-version --version="$RELEASE_VERSION"
+      - name: Install browser engines
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Verify source and packages
+        run: pnpm verify
+      - name: Prepare immutable release artifacts
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: pnpm release:prepare --version="$RELEASE_VERSION"
+      - name: Create annotated tag and release draft
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: pnpm release:draft --version="$RELEASE_VERSION"

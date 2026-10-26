@@ -14,7 +14,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "sideEffects": false,
   "scripts": {
@@ -27,5 +28,18 @@
   },
   "peerDependencies": {
     "datatables.net": "^3.1.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bensitu/omni-data-editor.git",
+    "directory": "packages/host-datatables"
+  },
+  "homepage": "https://github.com/bensitu/omni-data-editor#readme",
+  "bugs": {
+    "url": "https://github.com/bensitu/omni-data-editor/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

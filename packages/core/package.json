@@ -14,12 +14,26 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "sideEffects": false,
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bensitu/omni-data-editor.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/bensitu/omni-data-editor#readme",
+  "bugs": {
+    "url": "https://github.com/bensitu/omni-data-editor/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

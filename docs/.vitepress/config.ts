@@ -3,6 +3,7 @@ export default defineConfig({
   title: 'OmniDataEditor',
   description: 'A headless TypeScript entity editing engine',
   lang: 'en-US',
+  base: process.env.OMNIDATAEDITOR_DOCS_BASE ?? '/',
   cleanUrls: true,
   srcExclude: [
     'public/**',
@@ -19,6 +20,7 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'API', link: '/api/index.html' },
+      { text: 'Playground', link: '/examples/showcase/', target: '_blank' },
     ],
     sidebar: [
       {

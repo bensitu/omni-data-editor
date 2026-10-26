@@ -7,3 +7,5 @@ Keep core independent of browser, framework and host packages. Extend behavior t
 Use English for comments and descriptive terminology for public interfaces. Add focused behavior tests for consequential changes. Update the relevant usage guides and add a Changeset when a change affects package consumers. Exclude credentials, generated output and machine-specific configuration from contributions.
 
 Describe the problem, the resulting behavior and the relevant validation in each pull request. Keep unrelated changes in separate pull requests.
+
+Package versions and changelogs are managed with Changesets. All public packages use synchronized versions. Version updates should include the generated package changelogs; npm publication uses the reviewed archives attached to a published GitHub release.

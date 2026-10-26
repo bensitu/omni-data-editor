@@ -21,8 +21,13 @@
     "verify": "node scripts/verify.mjs",
     "check:artifacts": "node scripts/validate-artifacts.mjs",
     "check:bundles": "node scripts/bundle-sizes.mjs",
-    "release:prepare": "node scripts/release.mjs",
-    "dev": "vite examples --host 127.0.0.1"
+    "release:prepare": "node scripts/prepare-release.mjs",
+    "dev": "vite examples --host 127.0.0.1",
+    "release:draft": "node scripts/draft-release.mjs",
+    "release:publish-artifacts": "node scripts/publish-release-artifacts.mjs",
+    "version:packages": "changeset version",
+    "test:tooling": "node --test tests/tooling/*.test.mjs",
+    "package:pages": "node scripts/package-pages-site.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",
@@ -62,6 +67,11 @@
     "@omnidataeditor/presentation-dialog": "workspace:*",
     "@omnidataeditor/presentation-inline": "workspace:*",
     "@omnidataeditor/theme-default": "workspace:*",
-    "cross-spawn": "7.0.6"
+    "cross-spawn": "7.0.6",
+    "semver": "7.8.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bensitu/omni-data-editor.git"
   }
 }
