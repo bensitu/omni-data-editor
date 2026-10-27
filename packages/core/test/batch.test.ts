@@ -99,9 +99,15 @@ it('retains conflicts per entity and resolves them without losing other targets'
   expect(session.snapshot().conflict?.entityKey).toBe(2);
   session.resolveConflict({ kind: 'accept-remote' });
   expect(session.snapshot().conflict).toBeUndefined();
+  const draft = session.snapshot().draft;
+  if (draft.mode !== 'multi-edit')
+    throw new Error('Expected multiple entity draft.');
+  expect(draft.fields.get('salary')?.draft).toEqual({ kind: 'mixed' });
   expect(session.snapshot().changeSet).toMatchObject({
     entities: [{ candidate: { name: 'Remote', salary: 20 } }, { changes: [] }],
   });
+  session.reset('salary');
+  expect(session.snapshot().dirty).toBe(false);
 });
 
 it('treats inconsistent atomic results as uncertain for every dispatched entity', async () => {
@@ -120,7 +126,9 @@ it('treats inconsistent atomic results as uncertain for every dispatched entity'
       },
     },
   });
-  const uncertain = vi.fn();
+  const uncertain = vi.fn(),
+    failed = vi.fn();
+  editor.on('mutation:failed', failed);
   editor.on('mutation:uncertain', uncertain);
   const session = editor.editMany(entities);
   session.set('salary', 20);
@@ -128,6 +136,14 @@ it('treats inconsistent atomic results as uncertain for every dispatched entity'
   expect(outcome.status).toBe('batch');
   expect(session.snapshot().phase).toBe('cancelled');
   expect(uncertain).toHaveBeenCalledTimes(2);
+  expect(failed).toHaveBeenCalledWith(
+    expect.objectContaining({
+      error: expect.objectContaining({
+        category: 'invariant',
+        code: 'invalid-batch-result',
+      }),
+    }),
+  );
   expect(() => editor.edit(entities[0]!)).toThrow(/Refresh/);
 });
 
@@ -201,3 +217,26 @@ it('isolates cancellation and reconciles late successful batch results', async (
   expect(session.snapshot().phase).toBe('cancelled');
   expect(() => editor.edit(entities[0]!)).not.toThrow();
 });
+
+it.each(['accept-remote', 'merge'] as const)(
+  'displays canonical values after %s resolves every target',
+  (kind) => {
+    const editor = createEditor({ fields, identity });
+    const session = editor.editMany(entities);
+    session.set('salary', 20);
+    for (const entity of entities) {
+      editor.notifyExternalEntity({ ...entity, salary: 30 });
+      session.resolveConflict(
+        kind === 'merge' ? { kind, fields: { salary: 'remote' } } : { kind },
+      );
+    }
+    const draft = session.snapshot().draft;
+    if (draft.mode !== 'multi-edit')
+      throw new Error('Expected multiple entity draft.');
+    expect(draft.fields.get('salary')).toEqual({
+      baseline: { kind: 'uniform', value: 30 },
+      draft: { kind: 'unchanged' },
+    });
+    expect(session.snapshot().dirty).toBe(false);
+  },
+);

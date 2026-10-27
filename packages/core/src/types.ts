@@ -43,8 +43,7 @@ export type SessionPhase =
   | 'validating'
   | 'submitting'
   | 'committed'
-  | 'cancelled'
-  | 'failed';
+  | 'cancelled';
 export interface SingleDraftSnapshot<T> {
   readonly mode: 'create' | 'edit';
   readonly entity: T | null;
@@ -56,6 +55,7 @@ export type MultiFieldBaseline<V> =
   { readonly kind: 'uniform'; readonly value: V } | { readonly kind: 'mixed' };
 export type MultiFieldDraft<V> =
   | { readonly kind: 'unchanged' }
+  | { readonly kind: 'mixed' }
   | { readonly kind: 'override'; readonly value: V };
 export interface MultiFieldState<V> {
   readonly baseline: MultiFieldBaseline<V>;

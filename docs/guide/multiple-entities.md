@@ -1,6 +1,6 @@
 # Editing multiple entities
 
-Call `editor.editMany(entities)` with stable unique identity. Fields expose a uniform or mixed baseline and an unchanged or override draft. Only explicit overrides enter each entity change set. Unrelated properties and untouched mixed values remain unchanged.
+Call `editor.editMany(entities)` with stable unique identity. Fields expose a uniform or mixed baseline. Draft values are unchanged, a uniform override, or mixed when conflict resolution or canonical results leave different candidate values. Each entity change set reflects its actual candidate. Unrelated properties and untouched mixed values remain unchanged.
 
 Provide `batchPersistence.updateMany`. Requests include one change set per dirty entity. The result declares atomic or non atomic behavior and contains exactly one outcome for each requested key. A batch submission returns `{ status: 'batch', result, reflections }`; inspect each result independently.
 

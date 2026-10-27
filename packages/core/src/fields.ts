@@ -126,6 +126,7 @@ function factory<V>(renderer: string, accepts: (value: unknown) => value is V) {
           (renderer === 'checkbox' && value === false))
       )
         return issue('required');
+      if (value === null || value === undefined) return null;
       if (!accepts(value)) return issue('invalid-value');
       if (
         typeof value === 'number' &&
@@ -148,7 +149,7 @@ function factory<V>(renderer: string, accepts: (value: unknown) => value is V) {
       renderer,
       read: (entity) => readPath(entity, path) as V,
       write: (entity, value) => {
-        if (!accepts(value))
+        if (value !== null && value !== undefined && !accepts(value))
           throw configurationError(`Invalid semantic value for field ${id}.`);
         return writePath(entity, path, value);
       },
@@ -192,6 +193,8 @@ export function selectField<T, V = string>(
   id: string,
   options: FieldOptions<T, V>,
 ): FieldDefinition<T> {
+  if (!options.options)
+    throw configurationError(`Options are required for field ${id}.`);
   return factory<V>(
     'select',
     (value: unknown): value is V =>

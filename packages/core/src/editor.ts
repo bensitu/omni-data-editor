@@ -248,7 +248,13 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
         ),
         signal,
       );
-      if (destroyed || signal.aborted) throw destroyedError();
+      if (destroyed) throw destroyedError();
+      if (signal.aborted)
+        throw editorError(
+          'reconciliation',
+          'operation-cancelled',
+          'The operation was cancelled.',
+        );
       if (result.kind === 'unknown')
         throw editorError(
           'reconciliation',
@@ -256,6 +262,14 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
           'An authoritative mutation result is required.',
         );
       clear(record);
+      if (record.kind === 'create' && result.kind === 'present') {
+        emit('mutation:committed', {
+          sessionId: record.sessionId,
+          operationId: record.operationId,
+          entity: result.entity,
+        });
+        await reflect(null, result.entity, record.sessionId);
+      }
       if (record.entityKey !== undefined) {
         const index = canonical.findIndex(
           (entity) => identity(entity) === record.entityKey,
@@ -453,6 +467,8 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
             reflection: await reflect(null, entity, sessionId, true),
           };
         }
+        if (result.kind === 'conflict' || result.kind === 'forbidden')
+          removeIdentities.delete(entityKey);
         if (result.kind === 'conflict')
           return { status: 'conflict', entityKey };
         if (result.kind === 'transport' && result.certainty === 'unknown') {

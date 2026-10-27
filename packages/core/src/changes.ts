@@ -17,13 +17,12 @@ export function changes<T>(
 }
 
 const transitions: Record<SessionPhase, readonly SessionPhase[]> = {
-  opening: ['editing', 'cancelled', 'failed'],
-  editing: ['validating', 'cancelled', 'failed'],
-  validating: ['editing', 'submitting', 'cancelled', 'failed'],
-  submitting: ['committed', 'editing', 'cancelled', 'failed'],
+  opening: ['editing', 'cancelled'],
+  editing: ['validating', 'cancelled'],
+  validating: ['editing', 'submitting', 'cancelled'],
+  submitting: ['committed', 'editing', 'cancelled'],
   committed: [],
   cancelled: [],
-  failed: [],
 };
 
 export function transition(from: SessionPhase, to: SessionPhase): SessionPhase {
@@ -37,7 +36,7 @@ export function transition(from: SessionPhase, to: SessionPhase): SessionPhase {
 }
 
 export function terminal(phase: SessionPhase): boolean {
-  return ['committed', 'cancelled', 'failed'].includes(phase);
+  return ['committed', 'cancelled'].includes(phase);
 }
 
 export function identifier(): string {

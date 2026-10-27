@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createEditor, field, textField, numberField } from '../src/index.js';
+import {
+  createEditor,
+  field,
+  textField,
+  numberField,
+  selectField,
+} from '../src/index.js';
 import type {
   MutationOutcome,
   UncertainMutationRecord,
@@ -496,15 +502,77 @@ describe('Session transitions', () => {
     ['validating', 'submitting'],
     ['submitting', 'committed'],
     ['submitting', 'editing'],
-    ['submitting', 'failed'],
     ['editing', 'cancelled'],
     ['validating', 'cancelled'],
     ['submitting', 'cancelled'],
   ] as const)('allows %s to %s', (from, to) =>
     expect(transition(from, to)).toBe(to),
   );
-  it.each(['committed', 'cancelled', 'failed'] as const)(
+  it.each(['committed', 'cancelled'] as const)(
     'rejects writes after %s',
     (from) => expect(() => transition(from, 'editing')).toThrow(/transition/),
+  );
+});
+
+it('accepts empty optional values and reports required values during validation', async () => {
+  type Entity = { amount?: number | null; choice?: number | null };
+  const fields = [
+    numberField<Entity>('amount'),
+    selectField<Entity, number>('choice', {
+      required: true,
+      options: [{ value: 1, label: 'One' }],
+    }),
+  ];
+  const session = createEditor({ fields }).edit({ amount: 2, choice: 1 });
+  expect(session.set('amount', undefined).status).toBe('ok');
+  expect(session.set('choice', null).status).toBe('ok');
+  expect((await session.validate()).issues).toMatchObject([
+    { fieldId: 'choice', code: 'required' },
+  ]);
+  session.set('choice', 1);
+  expect((await session.validate()).valid).toBe(true);
+  expect(() => selectField<Entity>('choice', {})).toThrow(/Options/);
+});
+
+it('publishes and reflects an authoritative created entity before opening another draft', async () => {
+  const canonical = { ...employee, id: 2 };
+  const editor = createEditor<Employee>({
+    fields,
+    identity,
+    persistence: { create: async () => ({ ok: false, kind: 'unknown' }) },
+    reconciliation: {
+      reconcile: async () => ({ kind: 'present', entity: canonical }),
+    },
+  });
+  const committed = vi.fn(),
+    reflectCreate = vi.fn();
+  editor.on('mutation:committed', committed);
+  editor.attach({
+    capabilities: { reflection: { reflectCreate } },
+    detach() {},
+  });
+  expect((await editor.create({ initial: employee }).submit()).status).toBe(
+    'uncertain',
+  );
+  const next = editor.create({ initial: { ...employee, name: 'New' } });
+  await vi.waitFor(() => expect(next.snapshot().phase).toBe('editing'));
+  expect(committed).toHaveBeenCalledWith(
+    expect.objectContaining({ entity: canonical }),
+  );
+  expect(reflectCreate).toHaveBeenCalledWith(canonical);
+  expect(next.snapshot().draft).toMatchObject({ candidate: { name: 'New' } });
+  await editor.destroy();
+});
+
+it('uses a new deletion identity after a definitive refusal', async () => {
+  const remove = vi
+    .fn()
+    .mockResolvedValueOnce({ ok: false, kind: 'forbidden' })
+    .mockResolvedValueOnce({ ok: true });
+  const editor = createEditor({ fields, identity, persistence: { remove } });
+  await editor.remove(employee);
+  await editor.remove(employee);
+  expect(remove.mock.calls[0]?.[1].clientMutationId).not.toBe(
+    remove.mock.calls[1]?.[1].clientMutationId,
   );
 });

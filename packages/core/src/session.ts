@@ -72,6 +72,9 @@ export class Session<T> implements EditSession<T> {
   private activeOperationId: string | undefined;
   private clientMutationId = identifier();
   private pendingRecord: UncertainMutationRecord | undefined;
+  private draftCache:
+    | Pick<SessionSnapshot<T>, 'revision' | 'draft' | 'changeSet' | 'dirty'>
+    | undefined;
 
   constructor(
     readonly mode: SessionMode,
@@ -87,6 +90,7 @@ export class Session<T> implements EditSession<T> {
     if (entities) {
       this.baselines = [...entities];
       this.candidates = [...entities];
+      this.draftCache = undefined;
     }
     this.move('editing');
     this.publish();
@@ -97,6 +101,30 @@ export class Session<T> implements EditSession<T> {
   }
 
   snapshot(): SessionSnapshot<T> {
+    const data =
+      this.draftCache?.revision === this.revision
+        ? this.draftCache
+        : (this.draftCache = this.snapshotDraft());
+    return {
+      ...data,
+      ...(this.batchResult ? { batch: this.batchResult } : {}),
+      externalChangePolicy: this.env.options.externalChangePolicy ?? 'notify',
+      sessionId: this.id,
+      mode: this.mode,
+      phase: this.phase,
+      validation: this.validation,
+      issues: [...this.issues],
+      ...(this.conflict ? { conflict: this.conflict } : {}),
+      ...(this.activeOperationId
+        ? { activeOperationId: this.activeOperationId }
+        : {}),
+    };
+  }
+
+  private snapshotDraft(): Pick<
+    SessionSnapshot<T>,
+    'revision' | 'draft' | 'changeSet' | 'dirty'
+  > {
     const { fields, identity } = this.env.options;
     const first = this.candidates[0]!;
     const sets = this.candidates.map((candidate, index) =>
@@ -119,18 +147,27 @@ export class Session<T> implements EditSession<T> {
                 const uniform = this.baselines.every((entity) =>
                   (field.equals ?? Object.is)(value, field.read(entity)),
                 );
+                const candidateValue = field.read(first);
+                const candidatesUniform = this.candidates.every((entity) =>
+                  (field.equals ?? Object.is)(
+                    candidateValue,
+                    field.read(entity),
+                  ),
+                );
                 return [
                   field.id,
                   {
                     baseline: uniform
                       ? { kind: 'uniform' as const, value }
                       : { kind: 'mixed' as const },
-                    draft: this.overrides.has(field.id)
-                      ? {
-                          kind: 'override' as const,
-                          value: this.overrides.get(field.id),
-                        }
-                      : { kind: 'unchanged' as const },
+                    draft: !dirtyFields.has(field.id)
+                      ? { kind: 'unchanged' as const }
+                      : candidatesUniform
+                        ? {
+                            kind: 'override' as const,
+                            value: candidateValue,
+                          }
+                        : { kind: 'mixed' as const },
                   },
                 ];
               }),
@@ -159,21 +196,10 @@ export class Session<T> implements EditSession<T> {
           }
         : sets[0]!;
     return {
-      ...(this.batchResult ? { batch: this.batchResult } : {}),
-      externalChangePolicy: this.env.options.externalChangePolicy ?? 'notify',
-      sessionId: this.id,
       revision: this.revision,
-      mode: this.mode,
-      phase: this.phase,
       draft,
       changeSet,
-      validation: this.validation,
-      issues: [...this.issues],
       dirty: dirtyFields.size > 0,
-      ...(this.conflict ? { conflict: this.conflict } : {}),
-      ...(this.activeOperationId
-        ? { activeOperationId: this.activeOperationId }
-        : {}),
     };
   }
 
@@ -696,24 +722,38 @@ export class Session<T> implements EditSession<T> {
       } catch (cause) {
         dispatched = Promise.reject(cause);
       }
+      const requestedKeys = new Set(entities.map((entity) => entity.key));
       const valid = (outcome: BatchMutationOutcome<T>) =>
+        outcome != null &&
+        Array.isArray(outcome.items) &&
         outcome.items.length === entities.length &&
+        outcome.items.every(
+          (item) =>
+            item != null &&
+            item.outcome != null &&
+            typeof item.outcome.ok === 'boolean',
+        ) &&
         new Set(outcome.items.map((item) => item.key)).size ===
           entities.length &&
-        outcome.items.every((item) =>
-          entities.some((entity) => entity.key === item.key),
-        ) &&
+        outcome.items.every((item) => requestedKeys.has(item.key)) &&
         (outcome.atomicity === 'non-atomic' ||
           (outcome.atomicity === 'atomic' &&
             (outcome.items.every((item) => item.outcome.ok) ||
               outcome.items.every((item) => !item.outcome.ok))));
       dispatched = dispatched.then((outcome) => {
-        if (!valid(outcome))
-          throw editorError(
+        if (!valid(outcome)) {
+          const error = editorError(
             'invariant',
             'invalid-batch-result',
             'Batch persistence must return one result per key and consistent atomicity.',
           );
+          this.env.emit('mutation:failed', {
+            sessionId: this.id,
+            operationId: context.operationId,
+            error,
+          });
+          throw error;
+        }
         return outcome;
       });
       let authoritative: BatchMutationOutcome<T> | undefined;
@@ -741,7 +781,7 @@ export class Session<T> implements EditSession<T> {
       );
       try {
         result = await aborted(dispatched, this.controller.signal);
-      } catch {
+      } catch (error) {
         result = authoritative ?? {
           atomicity: 'non-atomic',
           items: entities.map((entity) => ({
@@ -751,6 +791,7 @@ export class Session<T> implements EditSession<T> {
               kind: 'transport',
               retryable: true,
               certainty: 'unknown',
+              error,
             },
           })),
         };
@@ -782,10 +823,11 @@ export class Session<T> implements EditSession<T> {
     const unresolved: UncertainMutationRecord[] = [];
     const conflicts: { key: EntityKey; remote: T }[] = [];
     let uncertain = false;
+    const baselineIndices = new Map(
+      this.baselines.map((entity, index) => [identity(entity), index]),
+    );
     for (const item of result.items) {
-      const index = this.baselines.findIndex(
-        (entity) => identity(entity) === item.key,
-      );
+      const index = baselineIndices.get(item.key)!;
       if (item.outcome.ok) {
         const previous = this.baselines[index]!;
         this.baselines[index] = item.outcome.entity;
@@ -953,9 +995,22 @@ export class Session<T> implements EditSession<T> {
     }
     this.baselines[index] = conflict.remote;
     this.candidates[index] = candidate;
+    for (const field of this.env.options.fields) {
+      if (
+        !this.candidates.some(
+          (entity, i) =>
+            !(field.equals ?? Object.is)(
+              field.read(entity),
+              field.read(this.baselines[i]!),
+            ),
+        )
+      )
+        this.overrides.delete(field.id);
+    }
     this.conflicts.delete(conflict.entityKey);
     this.conflict = this.conflicts.values().next().value;
     this.invalidate();
+    this.clientMutationId = identifier();
     this.env.emit('conflict:resolved', { sessionId: this.id, decision });
     this.publish();
     return { status: 'ok' };

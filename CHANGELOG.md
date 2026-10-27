@@ -5,6 +5,16 @@ Notable project changes are recorded in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - Unreleased
+
+### Fixed
+
+- Keep multiple-entity draft values consistent with canonical results and conflict decisions.
+- Support empty semantic values in built-in fields and validate select configuration.
+- Publish and reflect authoritative create results, preserve batch response diagnostics, and renew mutation identifiers after definitive conflict decisions.
+- Reuse derived draft data within each revision and index batch results by entity identity.
+- Align session state types with reachable runtime states.
+
 ## [0.1.0] - 2026-10-27
 
 ### Added
