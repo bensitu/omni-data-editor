@@ -24,6 +24,7 @@ export interface MutationReflectionCapability<T> {
 }
 export interface FieldAnchorCapability<T> {
   resolveFieldAnchor(entity: T, fieldId: string): HTMLElement | null;
+  activate?(entity: T, fieldId: string): void | Promise<void>;
 }
 export interface FocusHandle {
   readonly token: unknown;
@@ -57,6 +58,7 @@ export interface DomPresentationContext<T> extends PresentationContext<T> {
 }
 export interface FieldRendererContext<T, V> {
   readonly field: FieldDefinition<T, V>;
+  readonly messages?: Readonly<Record<string, string>>;
   readonly signal: AbortSignal;
   reportInput(event: {
     readonly kind: 'input' | 'commit';
@@ -66,6 +68,7 @@ export interface FieldRendererContext<T, V> {
 }
 export interface FieldRendererInstance<V = unknown> {
   setMixed?(mixed: boolean): void;
+  setRequired?(required: boolean): void;
   readonly element: HTMLElement;
   setValue(value: V): void;
   setDisabled(disabled: boolean): void;

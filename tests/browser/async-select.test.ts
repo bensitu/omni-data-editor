@@ -77,6 +77,14 @@ it('rejects stale query results and commits the keyboard selected semantic value
     candidate: { office: 'osaka' },
   });
   expect(test.input.value).toBe('Osaka office');
+  test.search('other');
+  test.search('Osaka office');
+  expect(test.input.checkValidity()).toBe(true);
+  test.search('');
+  expect(test.session.snapshot().draft).toMatchObject({
+    candidate: { office: undefined },
+  });
+  expect(test.input.checkValidity()).toBe(true);
   await test.editor.destroy();
 });
 it('debounces queries and distinguishes loading, empty and error states', async () => {
@@ -124,4 +132,27 @@ it('cancels outstanding queries during disposal and never restores removed contr
   await Promise.resolve();
   expect(document.querySelector('[role=combobox]')).toBeNull();
   expect(document.querySelector('[role=listbox]')).toBeNull();
+});
+
+it('keeps Enter inside an open list containing only disabled options', async () => {
+  const test = setup(async () => [
+    { value: 'osaka', label: 'Osaka', disabled: true },
+  ]);
+  test.search('Osaka');
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector('[role=listbox]')?.getAttribute('hidden'),
+    ).toBeNull(),
+  );
+  const event = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    bubbles: true,
+    cancelable: true,
+  });
+  test.input.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(true);
+  expect(test.session.snapshot().draft).toMatchObject({
+    candidate: { office: 'Tokyo' },
+  });
+  await test.editor.destroy();
 });

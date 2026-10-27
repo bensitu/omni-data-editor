@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Publish and reflect authoritative create results, preserve batch response diagnostics, and renew mutation identifiers after definitive conflict decisions.
 - Reuse derived draft data within each revision and index batch results by entity identity.
 - Align session state types with reachable runtime states.
+- Validate form configuration, preserve host contents on presentation failures, and apply cleared native control values.
+- Share batch predicate values, localize form messages, and handle asynchronous submission failures.
+- Bound asynchronous option label retention, improve keyboard interaction, and constrain option and dialog layouts.
 
 ## [0.1.0] - 2026-10-27
 

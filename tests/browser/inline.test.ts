@@ -165,3 +165,35 @@ it('treats registered popup focus as internal and applies explicit boundary canc
   popup.remove();
   outside.remove();
 });
+
+it('preserves anchor contents when a renderer cannot be created', async () => {
+  const anchor = document.createElement('div'),
+    original = document.createElement('button');
+  original.textContent = 'Ada';
+  anchor.append(original);
+  document.body.append(anchor);
+  const fields = [
+    {
+      ...textField<{ id: number; name: string }>('name'),
+      renderer: '@example/missing',
+    },
+  ];
+  const editor = createEditor({
+    fields,
+    identity: (entity: { id: number }) => entity.id,
+  });
+  editor.attach({
+    capabilities: {
+      anchor: { resolveFieldAnchor: () => anchor },
+      focus: browserFocus(),
+    },
+    detach() {},
+  });
+  editor.use(inline({ fields }));
+  const session = editor.edit({ id: 1, name: 'Ada' });
+  await vi.waitFor(() => expect(session.snapshot().phase).toBe('cancelled'));
+  expect(anchor.firstChild).toBe(original);
+  expect(anchor.childNodes.length).toBe(1);
+  await editor.destroy();
+  anchor.remove();
+});

@@ -3,6 +3,7 @@ import type {
   PresentationContext,
   SessionSnapshot,
 } from '@omnidataeditor/core';
+import { configurationError } from '@omnidataeditor/core';
 import type { FieldRendererInstance } from './types.js';
 import { createFocusSurfaceRegistry } from './focus.js';
 import { englishMessages, formatMessage } from './messages.js';
@@ -12,6 +13,7 @@ import {
 } from './registry.js';
 
 export interface FormOptions<T> {
+  /** Fields must be a subset of the fields registered with the editor. */
   readonly fields: readonly FieldDefinition<T>[];
   readonly registry?: DomRendererRegistry;
   readonly messages?: Readonly<Record<string, string>>;
@@ -29,6 +31,19 @@ export function createEditorForm<T>(
   context: PresentationContext<T>,
   options: FormOptions<T>,
 ): EditorForm {
+  const initial = context.getSnapshot();
+  const registered =
+    initial.draft.mode === 'multi-edit'
+      ? initial.draft.fields
+      : initial.draft.values;
+  const fieldIds = new Set<string>();
+  for (const field of options.fields) {
+    if (!registered.has(field.id) || fieldIds.has(field.id))
+      throw configurationError(
+        `Form fields must be registered once with the editor: ${field.id}.`,
+      );
+    fieldIds.add(field.id);
+  }
   const element = document.createElement('form');
   element.className = 'omnidataeditor-form';
   element.noValidate = true;
@@ -43,16 +58,17 @@ export function createEditorForm<T>(
   const controller = new AbortController();
   const displayed = new Map<string, unknown>();
   const catalog = { ...englishMessages, ...options.messages };
+  const text = (key: string) => formatMessage({ key }, catalog);
   const registry = options.registry ?? createRendererRegistry();
   const submitButton = document.createElement('button');
   submitButton.type = 'submit';
-  submitButton.textContent = options.messages?.save ?? 'Save';
+  submitButton.textContent = text('save');
   const cancelButton = document.createElement('button');
   cancelButton.type = 'button';
-  cancelButton.textContent = options.messages?.cancel ?? 'Cancel';
+  cancelButton.textContent = text('cancel');
   const resetButton = document.createElement('button');
   resetButton.type = 'button';
-  resetButton.textContent = options.messages?.reset ?? 'Reset';
+  resetButton.textContent = text('reset');
   element.append(summary, conflict);
   for (const field of options.fields) {
     const {
@@ -74,6 +90,7 @@ export function createEditorForm<T>(
           write: (value, input) => field.write(value as T, input),
         },
         signal: controller.signal,
+        messages: catalog,
         registerOwnedFocusSurface: (surface) => surfaces.register(surface),
         reportInput: (input) => {
           const outcome = context.dispatch({
@@ -82,7 +99,7 @@ export function createEditorForm<T>(
             value: input.value,
           });
           if (outcome.status === 'rejected')
-            summary.textContent = 'The value could not be applied.';
+            summary.textContent = text('value-not-applied');
         },
       });
     } catch (cause) {
@@ -105,13 +122,23 @@ export function createEditorForm<T>(
   actions.append(submitButton, resetButton, cancelButton);
   element.append(actions);
   const update = (snapshot: SessionSnapshot<T>) => {
-    const locked = [
-      'opening',
-      'submitting',
-      'committed',
-      'cancelled',
-      'failed',
-    ].includes(snapshot.phase);
+    const locked = ['opening', 'submitting', 'committed', 'cancelled'].includes(
+      snapshot.phase,
+    );
+    const candidates =
+      snapshot.draft.mode === 'multi-edit'
+        ? snapshot.changeSet && 'entities' in snapshot.changeSet
+          ? snapshot.changeSet.entities.map((entity) => entity.candidate)
+          : snapshot.draft.entities.map((entity) => entity.baseline)
+        : [];
+    const sharedContexts = candidates.map((candidate) => ({
+      candidate,
+      mode: snapshot.mode,
+      revision: snapshot.revision,
+      values: new Map(
+        options.fields.map((field) => [field.id, field.read(candidate)]),
+      ),
+    }));
     for (const field of options.fields) {
       const instance = controls.get(field.id)!;
       if (snapshot.draft.mode !== 'multi-edit') {
@@ -136,19 +163,12 @@ export function createEditorForm<T>(
         instance.setReadOnly(field.readOnlyWhen?.(predicate) ?? false);
         instance.setVisible(field.visibleWhen?.(predicate) ?? true);
       } else {
-        const state = snapshot.draft.fields.get(field.id)!;
+        const state = snapshot.draft.fields.get(field.id);
+        if (!state) continue;
         const mixed =
-          state.baseline.kind === 'mixed' && state.draft.kind === 'unchanged';
+          state.draft.kind === 'mixed' ||
+          (state.baseline.kind === 'mixed' && state.draft.kind === 'unchanged');
         instance.setMixed?.(mixed);
-        for (const control of instance.element.querySelectorAll<
-          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-        >('input, select, textarea'))
-          control.required =
-            field.presentation?.required === true &&
-            !(
-              state.baseline.kind === 'mixed' &&
-              state.draft.kind === 'unchanged'
-            );
         const display =
           state.draft.kind === 'override'
             ? state.draft.value
@@ -164,21 +184,10 @@ export function createEditorForm<T>(
           displayed.set(field.id, display);
         }
         if (mixed) displayed.delete(field.id);
-        instance.element.dataset.mixed = String(
-          state.baseline.kind === 'mixed' && state.draft.kind === 'unchanged',
-        );
-        const candidates =
-          snapshot.changeSet && 'entities' in snapshot.changeSet
-            ? snapshot.changeSet.entities.map((entity) => entity.candidate)
-            : snapshot.draft.entities.map((entity) => entity.baseline);
-        const contexts = candidates.map((candidate) => ({
-          candidate,
+        instance.element.dataset.mixed = String(mixed);
+        const contexts = sharedContexts.map((context) => ({
+          ...context,
           fieldId: field.id,
-          mode: snapshot.mode,
-          revision: snapshot.revision,
-          values: new Map(
-            options.fields.map((field) => [field.id, field.read(candidate)]),
-          ),
         }));
         instance.setDisabled(
           locked ||
@@ -201,24 +210,30 @@ export function createEditorForm<T>(
               formatMessage({ key: issue.messageKey ?? issue.code }, catalog),
           })),
       );
+      const state =
+        snapshot.draft.mode === 'multi-edit'
+          ? snapshot.draft.fields.get(field.id)
+          : undefined;
       const mixed =
-        snapshot.draft.mode === 'multi-edit' &&
-        snapshot.draft.fields.get(field.id)?.baseline.kind === 'mixed' &&
-        snapshot.draft.fields.get(field.id)?.draft.kind === 'unchanged';
-      for (const control of instance.element.querySelectorAll<
-        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-      >('input, select, textarea'))
-        control.required =
-          field.presentation?.required === true &&
-          !instance.element.hidden &&
-          !mixed;
+        state?.draft.kind === 'mixed' ||
+        (state?.baseline.kind === 'mixed' && state.draft.kind === 'unchanged');
+      const required =
+        field.presentation?.required === true &&
+        !instance.element.hidden &&
+        !mixed;
+      if (instance.setRequired) instance.setRequired(required);
+      else
+        for (const control of instance.element.querySelectorAll<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >('input, select, textarea'))
+          control.required = required;
     }
     summary.textContent = snapshot.issues
       .map(
         (issue) =>
           issue.message ??
-          options.messages?.[issue.messageKey ?? issue.code] ??
-          'Check the entered values.',
+          catalog[issue.messageKey ?? issue.code] ??
+          text('check-values'),
       )
       .join(' ');
     if (
@@ -229,19 +244,25 @@ export function createEditorForm<T>(
       const saved = snapshot.batch.items.filter(
         (item) => item.outcome.ok,
       ).length;
-      summary.textContent = `${saved} saved. ${snapshot.batch.items.length - saved} require attention.`;
+      summary.textContent = formatMessage(
+        {
+          key: 'batch-summary',
+          params: { saved, remaining: snapshot.batch.items.length - saved },
+        },
+        catalog,
+      );
     }
     conflict.replaceChildren();
     if (snapshot.conflict && snapshot.externalChangePolicy !== 'silent') {
-      const text = document.createElement('p');
-      text.textContent =
+      const description = document.createElement('p');
+      description.textContent =
         snapshot.conflict.kind === 'deleted'
-          ? 'This entity was removed remotely.'
-          : 'This entity changed remotely.';
-      conflict.append(text);
+          ? text('remote-removed')
+          : text('remote-updated');
+      conflict.append(description);
       for (const [label, kind] of [
-        ['Use remote data', 'accept-remote'],
-        ['Keep local changes', 'rebase-local'],
+        [text('accept-remote'), 'accept-remote'],
+        [text('rebase-local'), 'rebase-local'],
       ] as const) {
         if (snapshot.conflict.kind === 'deleted' && kind !== 'accept-remote')
           continue;
@@ -259,17 +280,32 @@ export function createEditorForm<T>(
     resetButton.disabled = locked;
   };
   const unsubscribe = context.subscribe(update);
-  update(context.getSnapshot());
+  try {
+    update(context.getSnapshot());
+  } catch (cause) {
+    unsubscribe();
+    controller.abort();
+    surfaces.clear();
+    for (const instance of controls.values()) {
+      try {
+        void Promise.resolve(instance.destroy()).catch(() => undefined);
+      } catch {
+        /* Continue releasing other controls. */
+      }
+    }
+    throw cause;
+  }
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
     if (!element.reportValidity()) return;
-    const result = await context.submit();
-    if (result.status === 'failed')
-      summary.textContent =
-        options.messages?.['save-failed'] ?? 'The data could not be saved.';
-    if (result.status === 'uncertain')
-      summary.textContent =
-        'The save result is unknown. Refresh canonical data before continuing.';
+    try {
+      const result = await context.submit();
+      if (result.status === 'failed') summary.textContent = text('save-failed');
+      if (result.status === 'uncertain')
+        summary.textContent = text('save-unknown');
+    } catch {
+      summary.textContent = text('save-failed');
+    }
   };
   element.addEventListener('submit', submit);
   cancelButton.onclick = () => {

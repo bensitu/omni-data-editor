@@ -9,3 +9,5 @@ Implement setValue, setDisabled, setReadOnly, setVisible, setIssues and idempote
 Keep unfinished numeric, date or search input local and use native validity to prevent submission. Render labels and issues as text. Provide label associations, aria-invalid, described errors and visible focus. Readonly must prevent semantic changes without imitating disabled.
 
 Register every owned popup surface and unregister it on disposal. Abort query work and remove listeners and timers when the signal aborts. Factories must be safe to import on the server; browser globals belong in create or mount. Run persistent browser behavior tests against the public package exports.
+
+Renderer contexts include the form's message catalog. Optional `setRequired(required)` lets a renderer update its own controls without repeated DOM queries. Renderers with dynamic control trees can implement this method; other renderers retain the native-control fallback.

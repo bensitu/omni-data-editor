@@ -1,5 +1,13 @@
 # @omnidataeditor/dom
 
+## 0.1.1
+
+### Patch Changes
+
+- Validate presentation field configuration before creating controls.
+- Write cleared numeric and select values to drafts, share batch predicate values, and delegate required-state updates to renderers.
+- Localize control and form messages and handle asynchronous submit failures.
+
 ## 0.1.0
 
 ### Minor Changes

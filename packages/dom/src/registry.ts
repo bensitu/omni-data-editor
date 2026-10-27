@@ -105,6 +105,7 @@ export function createNativeRenderer(
   const { field } = context,
     kind = field.renderer,
     config = field.presentation;
+  const text = (key: string) => formatMessage({ key }, context.messages);
   const element = document.createElement('div');
   element.className = 'omnidataeditor-field';
   const label = document.createElement('label'),
@@ -134,7 +135,7 @@ export function createNativeRenderer(
   if (control instanceof HTMLSelectElement) {
     const blank = document.createElement('option');
     blank.value = '';
-    blank.textContent = 'Choose an option';
+    blank.textContent = text('choose-option');
     control.append(blank);
     options.forEach((option, index) => {
       const item = document.createElement('option');
@@ -165,11 +166,14 @@ export function createNativeRenderer(
     }
     let value: unknown = control.value;
     if (kind === 'number') {
-      const result = numberCodec.parse(control.value);
-      control.setCustomValidity(result.ok ? '' : 'Enter a complete number.');
+      const result =
+        control.value.trim() === ''
+          ? { ok: true as const, value: undefined }
+          : numberCodec.parse(control.value);
+      control.setCustomValidity(result.ok ? '' : text('complete-number'));
       control.setAttribute('aria-invalid', String(!result.ok));
       if (!result.ok) {
-        issues.textContent = 'Enter a complete number.';
+        issues.textContent = text('complete-number');
         return;
       }
       value = result.value;
@@ -177,11 +181,10 @@ export function createNativeRenderer(
     if (control instanceof HTMLInputElement && kind === 'checkbox')
       value = control.checked;
     if (control instanceof HTMLSelectElement) {
-      if (control.value === '') {
-        control.setCustomValidity('Choose an option.');
-        return;
-      }
-      value = options[Number(control.value)]?.value;
+      value =
+        control.value === ''
+          ? undefined
+          : options[Number(control.value)]?.value;
       control.setCustomValidity('');
     }
     issues.textContent = '';
@@ -193,6 +196,9 @@ export function createNativeRenderer(
   if (kind === 'hidden') element.hidden = true;
   return {
     element,
+    setRequired(required) {
+      control.required = required;
+    },
     setMixed(mixed) {
       if (!mixed) {
         control.removeAttribute('placeholder');
@@ -201,7 +207,7 @@ export function createNativeRenderer(
       }
       control.setCustomValidity('');
       control.value = '';
-      control.setAttribute('placeholder', 'Multiple values');
+      control.setAttribute('placeholder', text('mixed'));
       if (control instanceof HTMLInputElement && kind === 'checkbox') {
         control.checked = false;
         control.indeterminate = true;
@@ -210,6 +216,7 @@ export function createNativeRenderer(
     setValue(value) {
       currentValue = value;
       display(value);
+      control.setCustomValidity('');
     },
     setDisabled(disabled) {
       control.disabled = disabled;
@@ -236,7 +243,10 @@ export function createNativeRenderer(
         .map(
           (issue) =>
             issue.message ??
-            formatMessage({ key: issue.messageKey ?? issue.code }),
+            formatMessage(
+              { key: issue.messageKey ?? issue.code },
+              context.messages,
+            ),
         )
         .join(' ');
       control.setAttribute(
@@ -294,6 +304,26 @@ function createRadioRenderer(
     input.setAttribute('aria-describedby', issues.id);
     label.append(input, document.createTextNode(option.label));
     input.addEventListener(
+      'click',
+      (event) => {
+        if (readOnly) event.preventDefault();
+      },
+      { signal: lifecycle.signal },
+    );
+    input.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          readOnly &&
+          [' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(
+            event.key,
+          )
+        )
+          event.preventDefault();
+      },
+      { signal: lifecycle.signal },
+    );
+    input.addEventListener(
       'change',
       () => {
         if (readOnly) render();
@@ -308,6 +338,11 @@ function createRadioRenderer(
   element.append(issues);
   return {
     element,
+    setRequired(required) {
+      controls.forEach((input) => {
+        input.required = required;
+      });
+    },
     setMixed(mixed) {
       if (mixed)
         controls.forEach((input) => {
@@ -335,7 +370,10 @@ function createRadioRenderer(
         .map(
           (issue) =>
             issue.message ??
-            formatMessage({ key: issue.messageKey ?? issue.code }),
+            formatMessage(
+              { key: issue.messageKey ?? issue.code },
+              context.messages,
+            ),
         )
         .join(' ');
       controls.forEach((input) =>

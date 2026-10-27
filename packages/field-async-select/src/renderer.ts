@@ -65,6 +65,7 @@ function createControl<V>(
   input.autocomplete = 'off';
   input.setAttribute('role', 'combobox');
   input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('aria-haspopup', 'listbox');
   input.setAttribute('aria-expanded', 'false');
   input.setAttribute('aria-controls', `${id}-options`);
   input.setAttribute('aria-describedby', `${id}-status ${id}-issues`);
@@ -89,12 +90,12 @@ function createControl<V>(
   let version = 0,
     active = -1,
     selected: V | undefined,
+    selectedLabel: string | undefined,
     readOnly = false,
     destroyed = false;
   let items: readonly AsyncSelectOption<V>[] = [];
-  const labels = new Map<EntityKey, string>();
   const text = (key: string, fallback: string) =>
-    options.messages?.[key] ?? fallback;
+    options.messages?.[key] ?? context.messages?.[key] ?? fallback;
   const stopQuery = () => {
     version++;
     if (timer !== undefined) clearTimeout(timer);
@@ -119,13 +120,19 @@ function createControl<V>(
   };
   const format = (value: V) =>
     options.formatValue?.(value) ??
-    labels.get(options.getKey(value)) ??
+    (selected !== undefined &&
+    options.getKey(value) === options.getKey(selected)
+      ? selectedLabel
+      : undefined) ??
+    items.find((item) => options.getKey(item.value) === options.getKey(value))
+      ?.label ??
     String(options.getKey(value));
   const choose = (index: number) => {
     const item = items[index];
     if (!item || item.disabled || readOnly || input.disabled) return;
     stopQuery();
     selected = item.value;
+    selectedLabel = item.label;
     input.value = item.label;
     input.setCustomValidity('');
     input.setAttribute('aria-invalid', 'false');
@@ -155,8 +162,14 @@ function createControl<V>(
       const keys = values.map((item) => options.getKey(item.value));
       if (new Set(keys).size !== keys.length)
         throw new Error('Invalid option identities.');
-      for (const item of values)
-        labels.set(options.getKey(item.value), item.label);
+      const matching =
+        selected === undefined
+          ? undefined
+          : values.find(
+              (item) =>
+                options.getKey(item.value) === options.getKey(selected!),
+            );
+      if (matching) selectedLabel = matching.label;
       items = values;
       active = values.findIndex((item) => !item.disabled);
       list.replaceChildren();
@@ -166,10 +179,7 @@ function createControl<V>(
         option.setAttribute('role', 'option');
         option.setAttribute('aria-disabled', String(item.disabled === true));
         option.textContent = item.label;
-        option.addEventListener('pointerdown', (event) =>
-          event.preventDefault(),
-        );
-        option.addEventListener('click', () => choose(index));
+        option.dataset.index = String(index);
         list.append(option);
       });
       list.hidden = !values.length;
@@ -198,6 +208,21 @@ function createControl<V>(
     stopQuery();
     close();
     items = [];
+    if (selected !== undefined && input.value === format(selected)) {
+      input.setCustomValidity('');
+      input.setAttribute('aria-invalid', 'false');
+      status.textContent = '';
+      return;
+    }
+    if (input.value === '') {
+      selected = undefined;
+      selectedLabel = undefined;
+      input.setCustomValidity('');
+      input.setAttribute('aria-invalid', 'false');
+      status.textContent = '';
+      context.reportInput({ kind: 'input', value: undefined });
+      return;
+    }
     input.setCustomValidity(
       text('choose-option', 'Choose an option from the list.'),
     );
@@ -217,6 +242,20 @@ function createControl<V>(
       void load(value, token);
     }, options.debounceMs ?? 200);
   };
+  list.addEventListener('pointerdown', (event) => event.preventDefault(), {
+    signal: lifecycle.signal,
+  });
+  list.addEventListener(
+    'click',
+    (event) => {
+      const option =
+        event.target instanceof Element
+          ? event.target.closest<HTMLElement>('[data-index]')
+          : null;
+      if (option && list.contains(option)) choose(Number(option.dataset.index));
+    },
+    { signal: lifecycle.signal },
+  );
   input.addEventListener('input', query, { signal: lifecycle.signal });
   input.addEventListener(
     'keydown',
@@ -254,10 +293,10 @@ function createControl<V>(
         }
         markActive();
       }
-      if (event.key === 'Enter' && !list.hidden && active >= 0) {
+      if (event.key === 'Enter' && !list.hidden) {
         event.preventDefault();
         event.stopPropagation();
-        choose(active);
+        if (active >= 0) choose(active);
       }
     },
     { signal: lifecycle.signal },
@@ -275,6 +314,9 @@ function createControl<V>(
   if (context.signal.aborted) destroy();
   return {
     element,
+    setRequired(required) {
+      input.required = required;
+    },
     setMixed(mixed) {
       if (mixed) {
         input.value = '';
@@ -285,6 +327,12 @@ function createControl<V>(
     setValue(value) {
       stopQuery();
       close();
+      if (
+        selected === undefined ||
+        !options.isValue(value) ||
+        options.getKey(selected) !== options.getKey(value)
+      )
+        selectedLabel = undefined;
       selected = options.isValue(value) ? value : undefined;
       input.value = selected === undefined ? '' : format(selected);
       input.setCustomValidity('');
@@ -318,7 +366,10 @@ function createControl<V>(
         .map(
           (issue) =>
             issue.message ??
-            formatMessage({ key: issue.messageKey ?? issue.code }),
+            formatMessage(
+              { key: issue.messageKey ?? issue.code },
+              context.messages,
+            ),
         )
         .join(' ');
       input.setAttribute(

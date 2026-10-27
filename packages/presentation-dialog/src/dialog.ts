@@ -50,33 +50,38 @@ export function dialog<T>(options: DialogOptions<T>): Presentation<T> {
           'presentation-in-use',
           'The dialog is already open.',
         );
-      focus = browserFocus().captureFocus();
-      element = document.createElement('dialog');
-      element.className = 'omnidataeditor-dialog';
-      const heading = document.createElement('h2');
-      heading.id = `omnidataeditor-title-${context.getSnapshot().sessionId}`;
-      heading.textContent = options.title ?? 'Edit entity';
-      element.setAttribute('aria-labelledby', heading.id);
-      element.append(heading);
-      form = createEditorForm(context, options);
-      element.append(form.element);
-      element.addEventListener('cancel', (event) => {
-        event.preventDefault();
-        if (options.closeOnEscape !== false)
-          context.dispatch({ type: 'cancel', reason: 'escape' });
-      });
-      (options.container ?? document.body).append(element);
-      element.showModal();
-      const first = [...form.controls.values()].find(
-        (control) =>
-          !control.element.hidden &&
-          !control.element.querySelector(':disabled'),
-      );
-      void first?.focus?.();
-      unsubscribe = context.subscribe((snapshot) => {
-        if (['committed', 'cancelled', 'failed'].includes(snapshot.phase))
-          void close().catch(() => undefined);
-      });
+      try {
+        focus = browserFocus().captureFocus();
+        element = document.createElement('dialog');
+        element.className = 'omnidataeditor-dialog';
+        const heading = document.createElement('h2');
+        heading.id = `omnidataeditor-title-${context.getSnapshot().sessionId}`;
+        heading.textContent = options.title ?? 'Edit entity';
+        element.setAttribute('aria-labelledby', heading.id);
+        element.append(heading);
+        form = createEditorForm(context, options);
+        element.append(form.element);
+        element.addEventListener('cancel', (event) => {
+          event.preventDefault();
+          if (options.closeOnEscape !== false)
+            context.dispatch({ type: 'cancel', reason: 'escape' });
+        });
+        (options.container ?? document.body).append(element);
+        element.showModal();
+        const first = [...form.controls.values()].find(
+          (control) =>
+            !control.element.hidden &&
+            !control.element.querySelector(':disabled'),
+        );
+        void first?.focus?.();
+        unsubscribe = context.subscribe((snapshot) => {
+          if (['committed', 'cancelled'].includes(snapshot.phase))
+            void close().catch(() => undefined);
+        });
+      } catch (cause) {
+        void close().catch(() => undefined);
+        throw cause;
+      }
     },
     destroy() {
       return close();

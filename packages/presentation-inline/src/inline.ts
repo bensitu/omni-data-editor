@@ -105,76 +105,95 @@ export function inline<T>(
           'unknown-field',
           'The inline field is not registered.',
         );
-      const target = capabilities.anchor.resolveFieldAnchor(
-        snapshot.draft.entity,
-        field.id,
-      );
-      if (!target?.isConnected)
-        throw editorError(
-          'presentation',
-          'anchor-unavailable',
-          'The field anchor is not visible in the host.',
-        );
       handle = capabilities.focus.captureFocus();
-      if (options.reveal !== 'never' && capabilities.viewport)
-        await capabilities.viewport.reveal(target, {
-          block: 'nearest',
-          inline: 'nearest',
-        });
-      if (
-        token !== generation ||
-        ['cancelled', 'committed', 'failed'].includes(
-          context.getSnapshot().phase,
-        )
-      )
-        return;
-      anchor = target;
-      original = document.createDocumentFragment();
-      while (target.firstChild) original.append(target.firstChild);
-      root = document.createElement('div');
-      root.className = 'omnidataeditor-inline';
-      form = createEditorForm(context, { ...options, fields: [field] });
-      root.append(form.element);
-      target.append(root);
-      const currentForm = form;
-      const onFocusOut = (event: FocusEvent) => {
+      try {
+        let target = capabilities.anchor.resolveFieldAnchor(
+          snapshot.draft.entity,
+          field.id,
+        );
         if (
-          !currentForm.surfaces.contains(event.target) ||
-          (options.blurBehavior ?? 'ignore') === 'ignore' ||
-          currentForm.surfaces.contains(event.relatedTarget)
+          !target?.isConnected &&
+          options.reveal !== 'never' &&
+          capabilities.anchor.activate
+        ) {
+          await capabilities.anchor.activate(snapshot.draft.entity, field.id);
+          target = capabilities.anchor.resolveFieldAnchor(
+            snapshot.draft.entity,
+            field.id,
+          );
+        }
+        if (!target?.isConnected)
+          throw editorError(
+            'presentation',
+            'anchor-unavailable',
+            'The field anchor is not visible in the host.',
+          );
+        if (options.reveal !== 'never' && capabilities.viewport)
+          await capabilities.viewport.reveal(target, {
+            block: 'nearest',
+            inline: 'nearest',
+          });
+        if (
+          token !== generation ||
+          ['cancelled', 'committed'].includes(context.getSnapshot().phase)
         )
           return;
-        queueMicrotask(() => {
+        form = createEditorForm(context, { ...options, fields: [field] });
+        anchor = target;
+        original = document.createDocumentFragment();
+        while (target.firstChild) original.append(target.firstChild);
+        root = document.createElement('div');
+        root.className = 'omnidataeditor-inline';
+        root.append(form.element);
+        target.append(root);
+        const currentForm = form;
+        const onFocusOut = (event: FocusEvent) => {
           if (
-            token !== generation ||
-            currentForm.surfaces.contains(document.activeElement)
+            !currentForm.surfaces.contains(event.target) ||
+            (options.blurBehavior ?? 'ignore') === 'ignore' ||
+            currentForm.surfaces.contains(event.relatedTarget)
           )
             return;
-          if (options.blurBehavior === 'cancel')
-            context.dispatch({ type: 'cancel', reason: 'focus-left-editor' });
-          else if (currentForm.element.reportValidity()) void context.submit();
+          queueMicrotask(() => {
+            if (
+              token !== generation ||
+              currentForm.surfaces.contains(document.activeElement)
+            )
+              return;
+            if (options.blurBehavior === 'cancel')
+              context.dispatch({ type: 'cancel', reason: 'focus-left-editor' });
+            else currentForm.element.requestSubmit();
+          });
+        };
+        document.addEventListener('focusout', onFocusOut);
+        releaseFocus = () => {
+          document.removeEventListener('focusout', onFocusOut);
+        };
+        root.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !event.defaultPrevented) {
+            event.preventDefault();
+            context.dispatch({ type: 'cancel', reason: 'escape' });
+          }
         });
-      };
-      document.addEventListener('focusout', onFocusOut);
-      releaseFocus = () => {
-        document.removeEventListener('focusout', onFocusOut);
-      };
-      root.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !event.defaultPrevented) {
-          event.preventDefault();
-          context.dispatch({ type: 'cancel', reason: 'escape' });
-        }
-      });
-      unsubscribe = context.subscribe((current) => {
-        if (['committed', 'cancelled', 'failed'].includes(current.phase))
-          void close().catch(() => undefined);
-      });
-      observer = new MutationObserver(() => {
-        if (token === generation && (!target.isConnected || !root?.isConnected))
-          context.dispatch({ type: 'cancel', reason: 'anchor-removed' });
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-      await form.controls.get(field.id)?.focus?.();
+        unsubscribe = context.subscribe((current) => {
+          if (['committed', 'cancelled'].includes(current.phase))
+            void close().catch(() => undefined);
+        });
+        const mountedTarget = target;
+        observer = new MutationObserver((records) => {
+          if (!records.some((record) => record.removedNodes.length > 0)) return;
+          if (
+            token === generation &&
+            (!mountedTarget.isConnected || !root?.isConnected)
+          )
+            context.dispatch({ type: 'cancel', reason: 'anchor-removed' });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        await form.controls.get(field.id)?.focus?.();
+      } catch (cause) {
+        await close().catch(() => undefined);
+        throw cause;
+      }
     },
     destroy() {
       return close();

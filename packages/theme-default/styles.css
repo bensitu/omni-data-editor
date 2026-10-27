@@ -19,6 +19,7 @@
 :where(.omnidataeditor-dialog) {
   width: min(32rem, calc(100vw - 2rem));
   max-height: calc(100dvh - 2rem);
+  overflow: auto;
   box-shadow: 0 1rem 4rem #15284133;
 }
 .omnidataeditor-dialog::backdrop {
@@ -33,6 +34,7 @@
   gap: 1.1rem;
 }
 :where(.omnidataeditor-field) {
+  position: relative;
   display: grid;
   gap: 0.4rem;
   min-width: 0;
@@ -104,15 +106,16 @@
   opacity: 0.6;
   cursor: default;
 }
-:where(.omnidataeditor-field[data-mixed='true'])::after {
-  content: 'Multiple values';
-  color: #4c5e70;
-  font-size: 0.85rem;
-}
 :where(.omnidataeditor-field[hidden]) {
   display: none;
 }
 :where(.omnidataeditor-listbox) {
+  position: absolute;
+  z-index: 1;
+  inset-inline: 0;
+  top: 100%;
+  box-sizing: border-box;
+  background: var(--omnidataeditor-color-background);
   max-height: 12rem;
   overflow: auto;
   margin: 0;

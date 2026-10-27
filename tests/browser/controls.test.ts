@@ -5,6 +5,7 @@ import {
   numberField,
   checkboxField,
   radioField,
+  selectField,
 } from '@omnidataeditor/core';
 import { dialog } from '@omnidataeditor/presentation-dialog';
 import { createRendererRegistry } from '@omnidataeditor/dom';
@@ -114,5 +115,47 @@ it('preserves incomplete numeric input and displays server field issues', async 
       'Name already exists.',
     ),
   );
+  await editor.destroy();
+});
+
+it('persists cleared optional controls as empty semantic values', async () => {
+  type Entity = { amount?: number; choice?: number };
+  const fields = [
+    numberField<Entity>('amount'),
+    selectField<Entity, number>('choice', {
+      options: [{ value: 1, label: 'One' }],
+    }),
+  ];
+  const update = vi.fn(async ({ candidate }: { candidate: Entity }) => ({
+    ok: true as const,
+    entity: candidate,
+  }));
+  const editor = createEditor({ fields, persistence: { update } });
+  editor.use(dialog({ fields }));
+  const session = editor.edit({ amount: 2, choice: 1 });
+  for (const control of document.querySelectorAll<
+    HTMLInputElement | HTMLSelectElement
+  >('[inputmode=decimal], select')) {
+    control.value = '';
+    control.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  document.querySelector<HTMLFormElement>('form')!.requestSubmit();
+  await vi.waitFor(() => expect(session.snapshot().phase).toBe('committed'));
+  expect(update.mock.calls[0]?.[0].candidate).toEqual({
+    amount: undefined,
+    choice: undefined,
+  });
+  await editor.destroy();
+});
+
+it('rejects unregistered presentation fields and releases a failed dialog mount', async () => {
+  const fields = [textField<{ name: string }>('name')];
+  const editor = createEditor({ fields });
+  const dispose = editor.use(dialog({ fields: [textField('missing')] }));
+  expect(() => editor.edit({ name: 'Ada' })).toThrow(/missing/);
+  expect(document.querySelector('dialog')).toBeNull();
+  await dispose();
+  editor.use(dialog({ fields }));
+  expect(() => editor.edit({ name: 'Ada' })).not.toThrow();
   await editor.destroy();
 });

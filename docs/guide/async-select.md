@@ -33,3 +33,7 @@ Pass this registry and the same fields to dialog or inline options. Different so
 The default debounce is 200 milliseconds. Queries receive AbortSignal, and operation identity isolates results when a source ignores cancellation. Loading, empty and error states use safe text. Arrow keys move the active option; Enter selects; Escape closes suggestions before cancelling the editor. Raw search text does not become an entity value, and unmatched input blocks form submission.
 
 The listbox is an owned focus surface inside the field, so it works within native modal dialogs. Cleanup cancels timers, queries and listeners. SSR imports do not access browser globals.
+
+Selection commits an option's semantic value through pointer or keyboard interaction. Matching an unselected label does not identify a unique value; duplicate labels may represent different keys. Restoring the selected option's display text remains valid. Clearing the input writes `undefined`; required fields still require a selection. Use `formatValue` when an initial value needs a display label before it appears in loaded results. Only current result labels and the selected label are retained.
+
+Applications control authorization, query escaping and request limits in `load`. The renderer debounces requests and cancels obsolete queries, while the application remains responsible for server resource limits.
