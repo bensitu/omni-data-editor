@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Validate form configuration, preserve host contents on presentation failures, and apply cleared native control values.
 - Share batch predicate values, localize form messages, and handle asynchronous submission failures.
 - Bound asynchronous option label retention, improve keyboard interaction, and constrain option and dialog layouts.
+- Preserve external host notifications during asynchronous reflection, refresh DataTables identity and column mappings, and activate local pages or virtual rows before inline editing.
 
 ## [0.1.0] - 2026-10-27
 

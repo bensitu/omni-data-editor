@@ -21,6 +21,7 @@ export interface DataTablesHostOptions<T> {
 }
 export interface DataTablesConnection<T> extends HostConnection<T> {
   readonly capabilities: PresentationCapabilities<T>;
+  refresh(): void;
 }
 let nextConnection = 0;
 export function dataTablesHost<T extends object>(
@@ -67,6 +68,7 @@ export function dataTablesHost<T extends object>(
   rebuild(false);
   const row = (key: EntityKey): ApiRowMethods<T> => {
     ensure();
+    rebuild(true);
     const index = indices.get(key);
     if (index === undefined)
       throw editorError(
@@ -76,18 +78,9 @@ export function dataTablesHost<T extends object>(
       );
     return table.row(index);
   };
-  const columns = new Map<string, number>();
-  table
-    .columns()
-    .dataSrc()
-    .toArray()
-    .forEach((source: unknown, index: number) => {
-      if (typeof source === 'string') columns.set(source, index);
-    });
-  for (const [fieldId, index] of Object.entries(options.columns ?? {}))
-    columns.set(fieldId, index);
   const resolve = (target: unknown): HostEntityRef<T> | null => {
     ensure();
+    rebuild(true);
     if (typeof target === 'string' || typeof target === 'number') {
       const entity = previous.get(target);
       return entity ? { key: target, entity } : null;
@@ -145,6 +138,7 @@ export function dataTablesHost<T extends object>(
     reflection: {
       async reflectCreate(entity) {
         ensure();
+        rebuild(true);
         const key = options.identity(entity);
         if (indices.has(key))
           throw editorError(
@@ -188,11 +182,28 @@ export function dataTablesHost<T extends object>(
       },
     },
     anchor: {
+      activate(entity) {
+        ensure();
+        rebuild(true);
+        const index = indices.get(options.identity(entity));
+        if (index === undefined) return;
+        const position = table
+          .rows({ search: 'applied', order: 'applied' })
+          .indexes()
+          .toArray()
+          .indexOf(index);
+        const length = table.page.info().length;
+        if (position >= 0 && length > 0)
+          table.page(Math.floor(position / length)).draw('page');
+      },
       resolveFieldAnchor(entity, fieldId) {
         ensure();
-        const index = indices.get(options.identity(entity)),
-          column = columns.get(fieldId);
-        if (index === undefined || column === undefined) return null;
+        rebuild(true);
+        const index = indices.get(options.identity(entity));
+        const column =
+          options.columns?.[fieldId] ??
+          table.columns().dataSrc().toArray().indexOf(fieldId);
+        if (index === undefined || column < 0) return null;
         const element = table.cell(index, column).node();
         return element instanceof HTMLElement && element.isConnected
           ? element
@@ -226,5 +237,13 @@ export function dataTablesHost<T extends object>(
         }
       : {}),
   };
-  return { capabilities, resolveEntity: resolve, detach };
+  return {
+    capabilities,
+    resolveEntity: resolve,
+    detach,
+    refresh() {
+      ensure();
+      rebuild(true);
+    },
+  };
 }

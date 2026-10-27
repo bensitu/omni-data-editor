@@ -12,7 +12,7 @@ The repository uses Node 24 and the pnpm version recorded in package.json for de
 
 Supply a stable identity when connecting existing entities to hosts. Mutable class models need explicit immutable accessors. Do not mutate supplied baselines or nested field values. Hosts that mutate data in place should keep independent immutable editing entities.
 
-Inline editing requires an available field anchor and focus capabilities. Offscreen virtualized anchors need application activation before inline editing. Search, sorting, filtering and pagination remain responsibilities of the host application.
+Inline editing requires field anchor and focus capabilities. With reveal enabled, hosts can activate an offscreen row through the optional anchor activation method. The included adapters handle local pages and Tabulator virtual rows. Search filters and unloaded remote data remain responsibilities of the host application.
 
 Applications provide server authorization, concurrency preconditions, idempotency and authoritative reconciliation. Abort signals isolate stale work; they do not imply that a dispatched mutation was rolled back. See [persistence](../guide/persistence.md) and [conflicts](../guide/conflicts.md).
 

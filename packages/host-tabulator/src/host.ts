@@ -31,6 +31,21 @@ export function tabulatorHost<T extends object>(
   let previous = new Map<EntityKey, T>();
   let detached = false,
     reflecting = 0;
+  const pending = new Set<EntityKey>();
+  const expected = new Map<EntityKey, T | undefined>();
+  const flush = () => {
+    if (reflecting || detached) return;
+    const keys = [...pending];
+    pending.clear();
+    const own = new Map(expected);
+    expected.clear();
+    for (const key of keys) {
+      const entity = previous.get(key);
+      if (own.has(key) && own.get(key) === entity) continue;
+      if (entity === undefined) options.onExternalRemoval?.(key);
+      else options.onExternalEntity?.(entity);
+    }
+  };
   const index = options.index ?? options.identity;
   const ensure = () => {
     if (detached)
@@ -63,12 +78,12 @@ export function tabulatorHost<T extends object>(
     }
     const old = previous;
     previous = current;
-    if (notify && !reflecting) {
+    if (notify) {
       for (const [key, entity] of current)
-        if (old.get(key) !== entity) options.onExternalEntity?.(entity);
-      for (const key of old.keys())
-        if (!current.has(key)) options.onExternalRemoval?.(key);
+        if (old.get(key) !== entity) pending.add(key);
+      for (const key of old.keys()) if (!current.has(key)) pending.add(key);
     }
+    flush();
   };
   rebuild(false);
   const row = (key: EntityKey) => {
@@ -114,6 +129,8 @@ export function tabulatorHost<T extends object>(
     subscriptions.clear();
     rows.clear();
     previous.clear();
+    pending.clear();
+    expected.clear();
   };
   const destroyed = () => {
     detach();
@@ -133,12 +150,14 @@ export function tabulatorHost<T extends object>(
             'duplicate-entity-key',
             'The canonical key or host index already exists.',
           );
+        expected.set(options.identity(entity), entity);
         reflecting++;
         try {
           await table.addRow(entity);
-          rebuild(false);
+          rebuild(true);
         } finally {
           reflecting--;
+          flush();
         }
       },
       async reflectUpdate(previous, current) {
@@ -156,31 +175,47 @@ export function tabulatorHost<T extends object>(
             'duplicate-entity-key',
             'The canonical key or host index already exists.',
           );
+        expected.set(options.identity(previous), undefined);
+        expected.set(options.identity(current), current);
         reflecting++;
         try {
           await source.delete();
+          const successor =
+            next && table.getRows().includes(next) ? next : undefined;
           const replacement = await table.addRow(
             current,
-            true,
-            next || undefined,
+            successor ? true : false,
+            successor,
           );
           if (selected) replacement.select();
-          rebuild(false);
+          rebuild(true);
         } finally {
           reflecting--;
+          flush();
         }
       },
       async reflectRemove(entity) {
+        expected.set(options.identity(entity), undefined);
         reflecting++;
         try {
           await row(options.identity(entity)).delete();
-          rebuild(false);
+          rebuild(true);
         } finally {
           reflecting--;
+          flush();
         }
       },
     },
     anchor: {
+      async activate(entity) {
+        const target = row(options.identity(entity));
+        if (
+          table.options.pagination &&
+          table.options.paginationMode !== 'remote'
+        )
+          await target.pageTo();
+        await target.scrollTo('nearest', false);
+      },
       resolveFieldAnchor(entity, fieldId) {
         ensure();
         const current = rows.get(options.identity(entity));
