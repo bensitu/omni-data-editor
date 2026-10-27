@@ -122,9 +122,13 @@ export function createEditorForm<T>(
   actions.append(submitButton, resetButton, cancelButton);
   element.append(actions);
   const update = (snapshot: SessionSnapshot<T>) => {
-    const locked = ['opening', 'submitting', 'committed', 'cancelled'].includes(
-      snapshot.phase,
-    );
+    const locked = [
+      'opening',
+      'submitting',
+      'committed',
+      'cancelled',
+      'failed',
+    ].includes(snapshot.phase);
     const candidates =
       snapshot.draft.mode === 'multi-edit'
         ? snapshot.changeSet && 'entities' in snapshot.changeSet

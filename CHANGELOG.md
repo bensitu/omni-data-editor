@@ -5,7 +5,9 @@ Notable project changes are recorded in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - Unreleased
+## [Unreleased]
+
+Planned version: 0.1.1.
 
 ### Fixed
 
@@ -13,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support empty semantic values in built-in fields and validate select configuration.
 - Publish and reflect authoritative create results, preserve batch response diagnostics, and renew mutation identifiers after definitive conflict decisions.
 - Reuse derived draft data within each revision and index batch results by entity identity.
-- Align session state types with reachable runtime states.
+- Clarify recoverable submission failures and terminal session behavior while retaining legacy state types for compatibility.
 - Validate form configuration, preserve host contents on presentation failures, and apply cleared native control values.
 - Share batch predicate values, localize form messages, and handle asynchronous submission failures.
 - Bound asynchronous option label retention, improve keyboard interaction, and constrain option and dialog layouts.

@@ -1,6 +1,6 @@
 {
   "name": "@omnidataeditor/host-tabulator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "description": "OmniDataEditor host tabulator",
   "type": "module",

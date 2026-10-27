@@ -62,7 +62,7 @@ for (const name of Object.keys(dependencies).filter(
 ))
   run(
     'node',
-    ['--input-type=module', '-e', `await import('${name}');`],
+    ['--input-type=module', '-e', `await import(${JSON.stringify(name)});`],
     target,
   );
 const { build, createServer } = await import('vite');

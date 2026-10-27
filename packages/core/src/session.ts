@@ -723,15 +723,41 @@ export class Session<T> implements EditSession<T> {
         dispatched = Promise.reject(cause);
       }
       const requestedKeys = new Set(entities.map((entity) => entity.key));
+      const validOutcome = (result: MutationOutcome<T>): boolean => {
+        if (result === null || typeof result !== 'object') return false;
+        if (result.ok === true) return Object.hasOwn(result, 'entity');
+        if (result.ok !== false) return false;
+        switch (result.kind) {
+          case 'validation':
+            return (
+              Array.isArray(result.issues) &&
+              result.issues.every(
+                (issue) => issue != null && typeof issue.code === 'string',
+              )
+            );
+          case 'conflict':
+          case 'forbidden':
+            return true;
+          case 'transport':
+            return (
+              typeof result.retryable === 'boolean' &&
+              ['not-committed', 'unknown'].includes(result.certainty)
+            );
+          case 'unknown':
+            return (
+              result.certainty === undefined ||
+              ['not-committed', 'unknown'].includes(result.certainty)
+            );
+          default:
+            return false;
+        }
+      };
       const valid = (outcome: BatchMutationOutcome<T>) =>
         outcome != null &&
         Array.isArray(outcome.items) &&
         outcome.items.length === entities.length &&
-        outcome.items.every(
-          (item) =>
-            item != null &&
-            item.outcome != null &&
-            typeof item.outcome.ok === 'boolean',
+        Array.from(outcome.items).every(
+          (item) => item != null && validOutcome(item.outcome),
         ) &&
         new Set(outcome.items.map((item) => item.key)).size ===
           entities.length &&

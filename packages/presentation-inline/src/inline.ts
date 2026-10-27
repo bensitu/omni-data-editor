@@ -135,7 +135,9 @@ export function inline<T>(
           });
         if (
           token !== generation ||
-          ['cancelled', 'committed'].includes(context.getSnapshot().phase)
+          ['cancelled', 'committed', 'failed'].includes(
+            context.getSnapshot().phase,
+          )
         )
           return;
         form = createEditorForm(context, { ...options, fields: [field] });
@@ -176,7 +178,7 @@ export function inline<T>(
           }
         });
         unsubscribe = context.subscribe((current) => {
-          if (['committed', 'cancelled'].includes(current.phase))
+          if (['committed', 'cancelled', 'failed'].includes(current.phase))
             void close().catch(() => undefined);
         });
         const mountedTarget = target;
@@ -191,7 +193,7 @@ export function inline<T>(
         observer.observe(document.body, { childList: true, subtree: true });
         await form.controls.get(field.id)?.focus?.();
       } catch (cause) {
-        await close().catch(() => undefined);
+        if (token === generation) await close().catch(() => undefined);
         throw cause;
       }
     },

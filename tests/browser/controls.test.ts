@@ -59,6 +59,7 @@ it('keeps disabled, read only and hidden fields distinct and renders native radi
     numberField<Entity>('amount', { enabledWhen: () => false }),
     checkboxField<Entity>('active', { visibleWhen: () => false }),
     radioField<Entity>('office', {
+      readOnlyWhen: () => true,
       options: [
         { value: 'Tokyo', label: 'Tokyo' },
         { value: 'Osaka', label: 'Osaka' },
@@ -82,6 +83,11 @@ it('keeps disabled, read only and hidden fields distinct and renders native radi
   expect(
     document.querySelector<HTMLInputElement>('input[type=radio]')?.checked,
   ).toBe(true);
+  const radios =
+    document.querySelectorAll<HTMLInputElement>('input[type=radio]');
+  radios[1]!.click();
+  expect(radios[0]!.checked).toBe(true);
+  expect(radios[1]!.checked).toBe(false);
   await editor.destroy();
 });
 

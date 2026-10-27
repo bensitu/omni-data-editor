@@ -73,9 +73,11 @@ export function dialog<T>(options: DialogOptions<T>): Presentation<T> {
             !control.element.hidden &&
             !control.element.querySelector(':disabled'),
         );
-        void first?.focus?.();
+        void Promise.resolve(first?.focus?.()).catch(() => {
+          context.dispatch({ type: 'cancel', reason: 'focus-unavailable' });
+        });
         unsubscribe = context.subscribe((snapshot) => {
-          if (['committed', 'cancelled'].includes(snapshot.phase))
+          if (['committed', 'cancelled', 'failed'].includes(snapshot.phase))
             void close().catch(() => undefined);
         });
       } catch (cause) {

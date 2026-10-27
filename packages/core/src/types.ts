@@ -37,13 +37,15 @@ export interface FieldDefinition<T, V = unknown> {
 }
 
 export type SessionMode = 'create' | 'edit' | 'multi-edit';
+/** The legacy failed value is reserved for source compatibility. Runtime failures return to editing or cancel the session. */
 export type SessionPhase =
   | 'opening'
   | 'editing'
   | 'validating'
   | 'submitting'
   | 'committed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'failed';
 export interface SingleDraftSnapshot<T> {
   readonly mode: 'create' | 'edit';
   readonly entity: T | null;

@@ -127,13 +127,6 @@ function factory<V>(renderer: string, accepts: (value: unknown) => value is V) {
       )
         return issue('required');
       if (value === null || value === undefined) return null;
-      if (!accepts(value)) return issue('invalid-value');
-      if (
-        typeof value === 'number' &&
-        ((options.min !== undefined && value < options.min) ||
-          (options.max !== undefined && value > options.max))
-      )
-        return issue('out-of-range');
       if (
         options.options &&
         !options.options.some((option) =>
@@ -141,6 +134,13 @@ function factory<V>(renderer: string, accepts: (value: unknown) => value is V) {
         )
       )
         return issue('invalid-option');
+      if (!accepts(value)) return issue('invalid-value');
+      if (
+        typeof value === 'number' &&
+        ((options.min !== undefined && value < options.min) ||
+          (options.max !== undefined && value > options.max))
+      )
+        return issue('out-of-range');
       return null;
     };
     return field<T, V>({

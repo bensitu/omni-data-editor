@@ -502,13 +502,14 @@ describe('Session transitions', () => {
     ['validating', 'submitting'],
     ['submitting', 'committed'],
     ['submitting', 'editing'],
+    ['submitting', 'failed'],
     ['editing', 'cancelled'],
     ['validating', 'cancelled'],
     ['submitting', 'cancelled'],
   ] as const)('allows %s to %s', (from, to) =>
     expect(transition(from, to)).toBe(to),
   );
-  it.each(['committed', 'cancelled'] as const)(
+  it.each(['committed', 'cancelled', 'failed'] as const)(
     'rejects writes after %s',
     (from) => expect(() => transition(from, 'editing')).toThrow(/transition/),
   );
@@ -532,6 +533,10 @@ it('accepts empty optional values and reports required values during validation'
   session.set('choice', 1);
   expect((await session.validate()).valid).toBe(true);
   expect(() => selectField<Entity>('choice', {})).toThrow(/Options/);
+  const invalid = createEditor({ fields }).edit({ amount: 2, choice: 99 });
+  expect((await invalid.validate()).issues).toMatchObject([
+    { fieldId: 'choice', code: 'invalid-option' },
+  ]);
 });
 
 it('publishes and reflects an authoritative created entity before opening another draft', async () => {
