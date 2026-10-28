@@ -5,28 +5,22 @@ Notable project changes are recorded in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-Planned version: 0.1.1.
+## [0.1.1] - 2026-10-29
 
 ### Fixed
 
 - Verify signed release archive provenance from the exact publication source and recover existing npm distribution tags.
 - Wait for shared checks before documentation deployment and preserve active deployments.
 - Resolve documentation toolchain advisories with scoped dependency updates and expose complete core and DOM exports from the editor entry point.
-
 - Apply confirmed host updates in batches, avoid redundant identity rebuilds, and preserve adapter mappings when input validation fails.
 - Restore Tabulator rows after replacement errors, report selection capability accurately, and distinguish windowed data from authoritative removal.
-
 - Preserve numeric input spelling, interpolate validation parameters, and keep conflict actions keyboard accessible.
 - Retain native forms after unknown save results, handle external dialog closure, and recover presentation cleanup.
 - Close asynchronous searches on blur and support semantic equality for structured selection values.
-
 - Preserve mutation diagnostics and unknown-result draft snapshots, isolate create reconciliation, and validate authoritative entity identities.
 - Keep subscription delivery ordered under reentrant commands and recover from application accessor failures.
 - Refresh unchanged registered values without conflicts, bound validation concurrency, and retain unaffected targets after remote deletion.
 - Preserve sparse arrays and numeric paths in immutable field writers and reject primitive traversal.
-
 - Keep multiple-entity draft values consistent with canonical results and conflict decisions.
 - Support empty semantic values in built-in fields and validate select configuration.
 - Publish and reflect authoritative create results, preserve batch response diagnostics, and renew mutation identifiers after definitive conflict decisions.
