@@ -37,3 +37,5 @@ The listbox is an owned focus surface inside the field, so it works within nativ
 Selection commits an option's semantic value through pointer or keyboard interaction. Matching an unselected label does not identify a unique value; duplicate labels may represent different keys. Restoring the selected option's display text remains valid. Clearing the input writes `undefined`; required fields still require a selection. Use `formatValue` when an initial value needs a display label before it appears in loaded results. Only current result labels and the selected label are retained.
 
 Applications control authorization, query escaping and request limits in `load`. The renderer debounces requests and cancels obsolete queries, while the application remains responsible for server resource limits.
+
+For structured values, supply `equals` to `asyncSelectField`, for example `(a, b) => a?.id === b?.id`. Renderer `getKey` controls option identity; the field comparator controls draft equality and conflict detection. Searches close when focus leaves the input.

@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Retain unknown-result drafts until dismissal, synchronize external dialog closure, and recover cleanup across subsequent openings.
+
 - Release dialog resources after mounting failures and align terminal-state handling with the runtime.
 
 ## 0.1.0

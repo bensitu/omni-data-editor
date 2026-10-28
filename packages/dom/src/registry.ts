@@ -144,7 +144,8 @@ export function createNativeRenderer(
       control.append(item);
     });
   }
-  let currentValue: unknown;
+  let currentValue: unknown, reportedValue: unknown;
+  let reporting = false;
   const display = (value: unknown) => {
     if (control instanceof HTMLInputElement && kind === 'checkbox')
       control.checked = value === true;
@@ -155,7 +156,11 @@ export function createNativeRenderer(
       control.value = index < 0 ? '' : String(index);
     } else
       control.value =
-        value === null || value === undefined ? '' : String(value);
+        value === null || value === undefined
+          ? ''
+          : kind === 'number' && config?.decimalSeparator === ','
+            ? String(value).replace('.', ',')
+            : String(value);
   };
   let readOnly = false,
     destroyed = false;
@@ -169,7 +174,11 @@ export function createNativeRenderer(
       const result =
         control.value.trim() === ''
           ? { ok: true as const, value: undefined }
-          : numberCodec.parse(control.value);
+          : numberCodec.parse(
+              config?.decimalSeparator === ','
+                ? control.value.replace(',', '.')
+                : control.value,
+            );
       control.setCustomValidity(result.ok ? '' : text('complete-number'));
       control.setAttribute('aria-invalid', String(!result.ok));
       if (!result.ok) {
@@ -188,8 +197,22 @@ export function createNativeRenderer(
       control.setCustomValidity('');
     }
     issues.textContent = '';
-    context.reportInput({ kind: 'input', value });
+    reporting = true;
+    reportedValue = value;
+    try {
+      context.reportInput({ kind: 'input', value });
+    } finally {
+      reporting = false;
+    }
   };
+  const preventReadOnly = (event: Event) => {
+    if (event instanceof KeyboardEvent && event.key === 'Tab') return;
+    if (readOnly && (kind === 'select' || kind === 'checkbox'))
+      event.preventDefault();
+  };
+  control.addEventListener('pointerdown', preventReadOnly);
+  control.addEventListener('click', preventReadOnly);
+  control.addEventListener('keydown', preventReadOnly);
   control.addEventListener('input', parse);
   control.addEventListener('change', parse);
   element.append(label, control, issues);
@@ -206,7 +229,7 @@ export function createNativeRenderer(
         return;
       }
       control.setCustomValidity('');
-      control.value = '';
+      if (kind !== 'checkbox') control.value = '';
       control.setAttribute('placeholder', text('mixed'));
       if (control instanceof HTMLInputElement && kind === 'checkbox') {
         control.checked = false;
@@ -215,8 +238,11 @@ export function createNativeRenderer(
     },
     setValue(value) {
       currentValue = value;
-      display(value);
+      if (!reporting || !(field.equals ?? Object.is)(reportedValue, value))
+        display(value);
       control.setCustomValidity('');
+      control.setAttribute('aria-invalid', 'false');
+      issues.textContent = '';
     },
     setDisabled(disabled) {
       control.disabled = disabled;
@@ -238,13 +264,16 @@ export function createNativeRenderer(
       }
     },
     setIssues(values) {
-      if (control.validationMessage && kind === 'number') return;
+      if (control.validity.customError && kind === 'number') return;
       issues.textContent = values
         .map(
           (issue) =>
             issue.message ??
             formatMessage(
-              { key: issue.messageKey ?? issue.code },
+              {
+                key: issue.messageKey ?? issue.code,
+                ...(issue.params ? { params: issue.params } : {}),
+              },
               context.messages,
             ),
         )
@@ -260,6 +289,9 @@ export function createNativeRenderer(
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      control.removeEventListener('pointerdown', preventReadOnly);
+      control.removeEventListener('click', preventReadOnly);
+      control.removeEventListener('keydown', preventReadOnly);
       control.removeEventListener('input', parse);
       control.removeEventListener('change', parse);
       element.remove();
@@ -275,6 +307,7 @@ function createRadioRenderer(
   const legend = document.createElement('legend');
   legend.textContent = messageText(context.field.label, context.field.id);
   const issues = document.createElement('div');
+  issues.className = 'omnidataeditor-issues';
   issues.id = `omnidataeditor-radio-${++nextControl}-issues`;
   issues.setAttribute('aria-live', 'polite');
   const options = (context.field.presentation?.options ?? []) as readonly {
@@ -371,7 +404,10 @@ function createRadioRenderer(
           (issue) =>
             issue.message ??
             formatMessage(
-              { key: issue.messageKey ?? issue.code },
+              {
+                key: issue.messageKey ?? issue.code,
+                ...(issue.params ? { params: issue.params } : {}),
+              },
               context.messages,
             ),
         )

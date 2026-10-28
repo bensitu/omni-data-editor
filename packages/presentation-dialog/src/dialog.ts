@@ -1,6 +1,11 @@
 import type { Presentation, PresentationContext } from '@omnidataeditor/core';
 import { editorError } from '@omnidataeditor/core';
-import { browserFocus, createEditorForm } from '@omnidataeditor/dom';
+import {
+  browserFocus,
+  createEditorForm,
+  englishMessages,
+  formatMessage,
+} from '@omnidataeditor/dom';
 import type { FormOptions, EditorForm, FocusHandle } from '@omnidataeditor/dom';
 
 export interface DialogOptions<T> extends FormOptions<T> {
@@ -14,7 +19,8 @@ export function dialog<T>(options: DialogOptions<T>): Presentation<T> {
     unsubscribe: (() => void) | undefined;
   let focus: FocusHandle | null = null;
   let closing: Promise<void> = Promise.resolve();
-  let generation = 0;
+  let generation = 0,
+    retained = false;
   const close = () => {
     if (!element && !form) return closing;
     const token = ++generation;
@@ -22,22 +28,25 @@ export function dialog<T>(options: DialogOptions<T>): Presentation<T> {
     unsubscribe = undefined;
     const current = form;
     form = undefined;
-    element?.close();
-    element?.remove();
+    const previousElement = element;
     element = undefined;
+    retained = false;
+    previousElement?.close();
+    previousElement?.remove();
     const handle = focus;
     focus = null;
-    closing = Promise.all([closing, Promise.resolve(current?.destroy())]).then(
-      () => {
-        if (handle && generation === token) browserFocus().focus(handle);
-      },
-    );
+    closing = Promise.all([
+      closing.catch(() => undefined),
+      Promise.resolve(current?.destroy()),
+    ]).then(() => {
+      if (handle && generation === token) browserFocus().focus(handle);
+    });
     return closing;
   };
   return {
     requiredCapabilities: [],
     mount(context: PresentationContext<T>) {
-      generation++;
+      if (retained) void close().catch(() => undefined);
       if (typeof document === 'undefined')
         throw editorError(
           'presentation',
@@ -50,21 +59,39 @@ export function dialog<T>(options: DialogOptions<T>): Presentation<T> {
           'presentation-in-use',
           'The dialog is already open.',
         );
+      generation++;
       try {
         focus = browserFocus().captureFocus();
         element = document.createElement('dialog');
         element.className = 'omnidataeditor-dialog';
         const heading = document.createElement('h2');
         heading.id = `omnidataeditor-title-${context.getSnapshot().sessionId}`;
-        heading.textContent = options.title ?? 'Edit entity';
+        heading.textContent =
+          options.title ??
+          formatMessage(
+            { key: 'edit-entity' },
+            { ...englishMessages, ...options.messages },
+          );
         element.setAttribute('aria-labelledby', heading.id);
         element.append(heading);
         form = createEditorForm(context, options);
+        form.cancelButton.onclick = () => {
+          context.dispatch({ type: 'cancel', reason: 'user-cancelled' });
+          void close().catch(() => undefined);
+        };
+        const openedElement = element;
+        element.addEventListener('close', () => {
+          if (element !== openedElement) return;
+          context.dispatch({ type: 'cancel', reason: 'dialog-closed' });
+          void close().catch(() => undefined);
+        });
         element.append(form.element);
         element.addEventListener('cancel', (event) => {
           event.preventDefault();
-          if (options.closeOnEscape !== false)
+          if (options.closeOnEscape !== false) {
             context.dispatch({ type: 'cancel', reason: 'escape' });
+            void close().catch(() => undefined);
+          }
         });
         (options.container ?? document.body).append(element);
         element.showModal();
@@ -77,6 +104,10 @@ export function dialog<T>(options: DialogOptions<T>): Presentation<T> {
           context.dispatch({ type: 'cancel', reason: 'focus-unavailable' });
         });
         unsubscribe = context.subscribe((snapshot) => {
+          if (snapshot.uncertainties?.length) {
+            retained = true;
+            return;
+          }
           if (['committed', 'cancelled', 'failed'].includes(snapshot.phase))
             void close().catch(() => undefined);
         });

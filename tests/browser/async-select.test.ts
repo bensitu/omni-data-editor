@@ -154,5 +154,9 @@ it('keeps Enter inside an open list containing only disabled options', async () 
   expect(test.session.snapshot().draft).toMatchObject({
     candidate: { office: 'Tokyo' },
   });
+  test.input.dispatchEvent(new FocusEvent('blur'));
+  expect(
+    document.querySelector<HTMLUListElement>('[role=listbox]')?.hidden,
+  ).toBe(true);
   await test.editor.destroy();
 });

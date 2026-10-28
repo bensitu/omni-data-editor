@@ -11,6 +11,10 @@ Planned version: 0.1.1.
 
 ### Fixed
 
+- Preserve numeric input spelling, interpolate validation parameters, and keep conflict actions keyboard accessible.
+- Retain native forms after unknown save results, handle external dialog closure, and recover presentation cleanup.
+- Close asynchronous searches on blur and support semantic equality for structured selection values.
+
 - Preserve mutation diagnostics and unknown-result draft snapshots, isolate create reconciliation, and validate authoritative entity identities.
 - Keep subscription delivery ordered under reentrant commands and recover from application accessor failures.
 - Refresh unchanged registered values without conflicts, bound validation concurrency, and retain unaffected targets after remote deletion.

@@ -28,7 +28,12 @@ let nextIdentifier = 0;
 export function createAsyncSelectRenderer<V>(
   options: AsyncSelectOptions<V>,
 ): FieldRendererFactory<unknown, unknown> {
-  if ((options.debounceMs ?? 200) < 0 || (options.minimumQueryLength ?? 0) < 0)
+  if (
+    !Number.isFinite(options.debounceMs ?? 200) ||
+    (options.debounceMs ?? 200) < 0 ||
+    !Number.isSafeInteger(options.minimumQueryLength ?? 0) ||
+    (options.minimumQueryLength ?? 0) < 0
+  )
     throw editorError(
       'configuration',
       'invalid-query-options',
@@ -256,6 +261,14 @@ function createControl<V>(
     },
     { signal: lifecycle.signal },
   );
+  input.addEventListener(
+    'blur',
+    () => {
+      stopQuery();
+      close();
+    },
+    { signal: lifecycle.signal },
+  );
   input.addEventListener('input', query, { signal: lifecycle.signal });
   input.addEventListener(
     'keydown',
@@ -367,7 +380,10 @@ function createControl<V>(
           (issue) =>
             issue.message ??
             formatMessage(
-              { key: issue.messageKey ?? issue.code },
+              {
+                key: issue.messageKey ?? issue.code,
+                ...(issue.params ? { params: issue.params } : {}),
+              },
               context.messages,
             ),
         )

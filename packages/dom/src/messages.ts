@@ -21,6 +21,9 @@ export const englishMessages: Readonly<Record<string, string>> = Object.freeze({
   'complete-number': 'Enter a complete number.',
   'choose-option': 'Choose an option',
   mixed: 'Multiple values',
+  close: 'Close',
+  'edit-entity': 'Edit entity',
+  'entity-save-failed': 'An entity could not be saved.',
 });
 export function formatMessage(
   message: MessageLike,
@@ -28,8 +31,17 @@ export function formatMessage(
 ): string {
   if (typeof message === 'string') return message;
   const template =
-    catalog[message.key] ?? message.defaultMessage ?? message.key;
+    (Object.hasOwn(catalog, message.key) &&
+    typeof catalog[message.key] === 'string'
+      ? catalog[message.key]
+      : undefined) ??
+    message.defaultMessage ??
+    message.key;
   return template.replace(/\{([\w-]+)\}/g, (match, key: string) =>
-    String(message.params?.[key] ?? match),
+    String(
+      message.params && Object.hasOwn(message.params, key)
+        ? message.params[key]
+        : match,
+    ),
   );
 }

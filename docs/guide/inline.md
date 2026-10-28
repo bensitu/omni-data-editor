@@ -9,3 +9,5 @@ Escape cancels. Native form submission saves. Sorting that preserves the anchor 
 Owned overlays must register with `registerOwnedFocusSurface` and release that registration during renderer cleanup. Do not place portal content outside a native modal dialog, since it would be inert under browser modal semantics.
 
 Presentation fields must be registered with the editor. An inline form is created before the original anchor content is replaced; a failed mount restores the original nodes. When reveal is enabled and an anchor is initially unavailable, the presentation calls the host's optional `anchor.activate(entity, fieldId)` before resolving the anchor again. `reveal: 'never'` disables activation and scrolling.
+
+Unknown save results retain a locked form with its draft and an explanation until the user closes it or starts another operation. Host rerendering that removes the anchor cancels inline editing. Pointer interactions inside the form are kept inside its focus boundary even when a browser does not focus the clicked button. Native controls are created in the executing document; cross-window rendering requires application integration.

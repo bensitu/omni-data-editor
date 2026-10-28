@@ -24,11 +24,13 @@ export function inline<T>(
     observer: MutationObserver | undefined;
   let handle: FocusHandle | null = null,
     capabilities: PresentationCapabilities<T> = {};
+  let retained = false;
   let generation = 0,
     disposal: Promise<void> = Promise.resolve();
   let releaseFocus = () => {};
   const close = () => {
     const closingGeneration = ++generation;
+    retained = false;
     releaseFocus();
     unsubscribe?.();
     unsubscribe = undefined;
@@ -50,12 +52,13 @@ export function inline<T>(
     const focus = handle;
     handle = null;
     if (!current) return disposal;
-    disposal = Promise.all([disposal, Promise.resolve(current.destroy())]).then(
-      async () => {
-        if (focus && generation === closingGeneration)
-          await capabilities.focus?.focus(focus);
-      },
-    );
+    disposal = Promise.all([
+      disposal.catch(() => undefined),
+      Promise.resolve(current.destroy()),
+    ]).then(async () => {
+      if (focus && generation === closingGeneration)
+        await capabilities.focus?.focus(focus);
+    });
     return disposal;
   };
   return {
@@ -71,13 +74,14 @@ export function inline<T>(
           'browser-required',
           'Inline editing requires a browser.',
         );
-      const token = ++generation;
+      if (retained) await close().catch(() => undefined);
       if (root)
         throw editorError(
           'presentation',
           'presentation-in-use',
           'The inline presentation is already open.',
         );
+      const token = ++generation;
       capabilities = context.capabilities as PresentationCapabilities<T>;
       if (
         !capabilities.anchor ||
@@ -140,7 +144,17 @@ export function inline<T>(
           )
         )
           return;
+        if (!target.isConnected)
+          throw editorError(
+            'presentation',
+            'anchor-unavailable',
+            'The field anchor is no longer available.',
+          );
         form = createEditorForm(context, { ...options, fields: [field] });
+        form.cancelButton.onclick = () => {
+          context.dispatch({ type: 'cancel', reason: 'user-cancelled' });
+          void close().catch(() => undefined);
+        };
         anchor = target;
         original = document.createDocumentFragment();
         while (target.firstChild) original.append(target.firstChild);
@@ -149,6 +163,15 @@ export function inline<T>(
         root.append(form.element);
         target.append(root);
         const currentForm = form;
+        let ownedPointer = false;
+        const onPointerDown = (event: PointerEvent) => {
+          ownedPointer = currentForm.surfaces.contains(event.target);
+        };
+        const onPointerEnd = () => {
+          setTimeout(() => {
+            ownedPointer = false;
+          }, 0);
+        };
         const onFocusOut = (event: FocusEvent) => {
           if (
             !currentForm.surfaces.contains(event.target) ||
@@ -158,6 +181,7 @@ export function inline<T>(
             return;
           queueMicrotask(() => {
             if (
+              ownedPointer ||
               token !== generation ||
               currentForm.surfaces.contains(document.activeElement)
             )
@@ -167,17 +191,28 @@ export function inline<T>(
             else currentForm.element.requestSubmit();
           });
         };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        document.addEventListener('pointerup', onPointerEnd, true);
+        document.addEventListener('pointercancel', onPointerEnd, true);
         document.addEventListener('focusout', onFocusOut);
         releaseFocus = () => {
+          document.removeEventListener('pointerdown', onPointerDown, true);
+          document.removeEventListener('pointerup', onPointerEnd, true);
+          document.removeEventListener('pointercancel', onPointerEnd, true);
           document.removeEventListener('focusout', onFocusOut);
         };
         root.addEventListener('keydown', (event) => {
           if (event.key === 'Escape' && !event.defaultPrevented) {
             event.preventDefault();
             context.dispatch({ type: 'cancel', reason: 'escape' });
+            void close().catch(() => undefined);
           }
         });
         unsubscribe = context.subscribe((current) => {
+          if (current.uncertainties?.length) {
+            retained = true;
+            return;
+          }
           if (['committed', 'cancelled', 'failed'].includes(current.phase))
             void close().catch(() => undefined);
         });
@@ -190,7 +225,13 @@ export function inline<T>(
           )
             context.dispatch({ type: 'cancel', reason: 'anchor-removed' });
         });
-        observer.observe(document.body, { childList: true, subtree: true });
+        const scope = target.getRootNode();
+        observer.observe(scope instanceof ShadowRoot ? scope : document.body, {
+          childList: true,
+          subtree: true,
+        });
+        if (scope instanceof ShadowRoot)
+          observer.observe(document.body, { childList: true, subtree: true });
         await form.controls.get(field.id)?.focus?.();
       } catch (cause) {
         if (token === generation) await close().catch(() => undefined);

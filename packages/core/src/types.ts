@@ -8,7 +8,7 @@ export type MessageLike = string | MessageDescriptor;
 export interface MessageDescriptor {
   readonly key: string;
   readonly defaultMessage?: string;
-  readonly params?: Readonly<Record<string, string | number>>;
+  readonly params?: Readonly<Record<string, unknown>>;
 }
 
 export interface FieldPredicateContext<T> {

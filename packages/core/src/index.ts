@@ -3,6 +3,8 @@ export { createEditor } from './editor.js';
 export { editorError, configurationError, destroyedError } from './errors.js';
 export {
   entityIdentity,
+  readPath,
+  writePath,
   field,
   textField,
   textareaField,

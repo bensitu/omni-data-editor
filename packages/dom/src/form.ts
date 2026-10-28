@@ -17,6 +17,7 @@ export interface FormOptions<T> {
   readonly fields: readonly FieldDefinition<T>[];
   readonly registry?: DomRendererRegistry;
   readonly messages?: Readonly<Record<string, string>>;
+  readonly renderConflicts?: boolean;
 }
 export interface EditorForm {
   readonly element: HTMLFormElement;
@@ -52,6 +53,7 @@ export function createEditorForm<T>(
   summary.setAttribute('role', 'status');
   const conflict = document.createElement('div');
   conflict.className = 'omnidataeditor-conflict';
+  conflict.setAttribute('role', 'alert');
   const controls = new Map<string, FieldRendererInstance>(),
     surfaces = createFocusSurfaceRegistry();
   surfaces.register(element);
@@ -121,6 +123,7 @@ export function createEditorForm<T>(
   actions.className = 'omnidataeditor-actions';
   actions.append(submitButton, resetButton, cancelButton);
   element.append(actions);
+  let displayedConflict: SessionSnapshot<T>['conflict'];
   const update = (snapshot: SessionSnapshot<T>) => {
     const locked = [
       'opening',
@@ -135,7 +138,13 @@ export function createEditorForm<T>(
           ? snapshot.changeSet.entities.map((entity) => entity.candidate)
           : snapshot.draft.entities.map((entity) => entity.baseline)
         : [];
-    const sharedContexts = candidates.map((candidate) => ({
+    const sharedContexts = (
+      options.fields.some(
+        (field) => field.visibleWhen || field.enabledWhen || field.readOnlyWhen,
+      )
+        ? candidates
+        : []
+    ).map((candidate) => ({
       candidate,
       mode: snapshot.mode,
       revision: snapshot.revision,
@@ -201,7 +210,9 @@ export function createEditorForm<T>(
           contexts.some((context) => field.readOnlyWhen?.(context) ?? false),
         );
         instance.setVisible(
-          contexts.some((context) => field.visibleWhen?.(context) ?? true),
+          field.visibleWhen
+            ? contexts.some((context) => field.visibleWhen!(context))
+            : true,
         );
       }
       instance.setIssues(
@@ -211,7 +222,13 @@ export function createEditorForm<T>(
             ...issue,
             message:
               issue.message ??
-              formatMessage({ key: issue.messageKey ?? issue.code }, catalog),
+              formatMessage(
+                {
+                  key: issue.messageKey ?? issue.code,
+                  ...(issue.params ? { params: issue.params } : {}),
+                },
+                catalog,
+              ),
           })),
       );
       const state =
@@ -232,14 +249,26 @@ export function createEditorForm<T>(
         >('input, select, textarea'))
           control.required = required;
     }
-    summary.textContent = snapshot.issues
-      .map(
-        (issue) =>
-          issue.message ??
-          catalog[issue.messageKey ?? issue.code] ??
-          text('check-values'),
-      )
-      .join(' ');
+    summary.textContent = [
+      ...new Set(
+        snapshot.issues.map(
+          (issue) =>
+            issue.message ??
+            formatMessage(
+              {
+                key: issue.messageKey ?? issue.code,
+                ...(issue.params ? { params: issue.params } : {}),
+              },
+              catalog,
+            ),
+        ),
+      ),
+    ].join(' ');
+    if (snapshot.uncertainties?.length)
+      summary.textContent = text('save-unknown');
+    cancelButton.textContent = text(
+      snapshot.uncertainties?.length ? 'close' : 'cancel',
+    );
     if (
       snapshot.batch &&
       !snapshot.issues.length &&
@@ -256,27 +285,30 @@ export function createEditorForm<T>(
         catalog,
       );
     }
-    conflict.replaceChildren();
-    if (snapshot.conflict && snapshot.externalChangePolicy !== 'silent') {
-      const description = document.createElement('p');
-      description.textContent =
-        snapshot.conflict.kind === 'deleted'
-          ? text('remote-removed')
-          : text('remote-updated');
-      conflict.append(description);
-      for (const [label, kind] of [
-        [text('accept-remote'), 'accept-remote'],
-        [text('rebase-local'), 'rebase-local'],
-      ] as const) {
-        if (snapshot.conflict.kind === 'deleted' && kind !== 'accept-remote')
-          continue;
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.textContent = label;
-        button.onclick = () => {
-          context.dispatch({ type: 'resolve-conflict', decision: { kind } });
-        };
-        conflict.append(button);
+    if (displayedConflict !== snapshot.conflict) {
+      displayedConflict = snapshot.conflict;
+      conflict.replaceChildren();
+      if (snapshot.conflict && options.renderConflicts !== false) {
+        const description = document.createElement('p');
+        description.textContent =
+          snapshot.conflict.kind === 'deleted'
+            ? text('remote-removed')
+            : text('remote-updated');
+        conflict.append(description);
+        for (const [label, kind] of [
+          [text('accept-remote'), 'accept-remote'],
+          [text('rebase-local'), 'rebase-local'],
+        ] as const) {
+          if (snapshot.conflict.kind === 'deleted' && kind !== 'accept-remote')
+            continue;
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = label;
+          button.onclick = () => {
+            context.dispatch({ type: 'resolve-conflict', decision: { kind } });
+          };
+          conflict.append(button);
+        }
       }
     }
     submitButton.disabled =
