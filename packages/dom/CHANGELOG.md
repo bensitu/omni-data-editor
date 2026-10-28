@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Preserve keyboard cancellation and navigation on read-only select and checkbox controls.
+
 - Expose optional bulk canonical update reflection for host integrations.
 
 - Preserve numeric input spelling, interpolate issue parameters, and safely resolve catalog keys.

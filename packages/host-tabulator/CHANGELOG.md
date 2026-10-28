@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Update row identity mappings during bulk replacements and restore the actual host data on insertion failure.
+
 - Reflect canonical updates in batches and rebuild identity mappings only after complete validation.
 - Distinguish windowed datasets from authoritative removal notifications.
 

@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Clear reflection markers after unchanged updates so later external removals are delivered.
+
 - Reflect canonical updates in batches and rebuild identity mappings only after complete validation.
 - Distinguish windowed datasets from authoritative removal notifications.
 

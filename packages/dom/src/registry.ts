@@ -206,9 +206,23 @@ export function createNativeRenderer(
     }
   };
   const preventReadOnly = (event: Event) => {
-    if (event instanceof KeyboardEvent && event.key === 'Tab') return;
-    if (readOnly && (kind === 'select' || kind === 'checkbox'))
-      event.preventDefault();
+    if (!readOnly || (kind !== 'select' && kind !== 'checkbox')) return;
+    if (
+      event instanceof KeyboardEvent &&
+      ![
+        ' ',
+        'Enter',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+        'PageUp',
+        'PageDown',
+      ].includes(event.key) &&
+      !(kind === 'select' && event.key.length === 1)
+    )
+      return;
+    event.preventDefault();
   };
   control.addEventListener('pointerdown', preventReadOnly);
   control.addEventListener('click', preventReadOnly);

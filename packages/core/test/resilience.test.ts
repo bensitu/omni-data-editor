@@ -7,11 +7,76 @@ import {
   dateTimeField,
 } from '../src/index.js';
 import { writePath, readPath } from '../src/fields.js';
+import type { MutationOutcome } from '../src/index.js';
 
 type Entity = { id: number; name: string; amount: number; version?: number };
 const entity: Entity = { id: 1, name: 'Ada', amount: 10, version: 1 };
 const fields = [textField<Entity>('name'), numberField<Entity>('amount')];
 const identity = (value: Entity) => value.id;
+
+it('ignores late results after authoritative reconciliation has replaced their baseline', async () => {
+  let finish!: (outcome: MutationOutcome<Entity>) => void;
+  const request = new Promise<MutationOutcome<Entity>>((resolve) => {
+    finish = resolve;
+  });
+  const canonical = { ...entity, name: 'Current' };
+  const update = vi.fn(() => request),
+    committed = vi.fn(),
+    reflectUpdate = vi.fn();
+  const editor = createEditor({
+    fields,
+    identity,
+    persistence: { update },
+    reconciliation: {
+      reconcile: async () => ({ kind: 'present', entity: canonical }),
+    },
+  });
+  editor.attach({
+    capabilities: { reflection: { reflectUpdate } },
+    detach() {},
+  });
+  editor.on('mutation:committed', committed);
+  const first = editor.edit(entity),
+    pending = first.submit();
+  await vi.waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+  first.cancel();
+  await pending;
+  const current = editor.edit(entity);
+  await vi.waitFor(() => expect(current.snapshot().phase).toBe('editing'));
+  finish({ ok: true, entity: { ...entity, name: 'Earlier' } });
+  await request;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(reflectUpdate).not.toHaveBeenCalled();
+  expect(committed).not.toHaveBeenCalled();
+  expect(current.snapshot().draft).toMatchObject({ candidate: canonical });
+  await editor.destroy();
+});
+
+it('reflects a success when cancellation follows response settlement', async () => {
+  let finish!: (outcome: MutationOutcome<Entity>) => void;
+  const request = new Promise<MutationOutcome<Entity>>((resolve) => {
+    finish = resolve;
+  });
+  const update = vi.fn(() => request),
+    committed = vi.fn(),
+    reflectUpdate = vi.fn();
+  const editor = createEditor({ fields, identity, persistence: { update } });
+  editor.attach({
+    capabilities: { reflection: { reflectUpdate } },
+    detach() {},
+  });
+  editor.on('mutation:committed', committed);
+  const session = editor.edit(entity),
+    pending = session.submit();
+  await vi.waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+  finish({ ok: true, entity });
+  queueMicrotask(() => queueMicrotask(() => session.cancel()));
+  expect(await pending).toMatchObject({ status: 'committed' });
+  expect(committed).toHaveBeenCalledTimes(1);
+  expect(reflectUpdate).toHaveBeenCalledTimes(1);
+  expect(() => editor.edit(entity)).not.toThrow();
+  await editor.destroy();
+});
 
 it('validates calendar dates and local date-time values without timezone conversion', async () => {
   type Dates = { date: string; local: string };

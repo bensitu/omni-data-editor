@@ -102,8 +102,10 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
       }
     }
   };
+  const uncertaintyKey = (record: UncertainMutationRecord) =>
+    `${record.operationId}:${typeof record.entityKey}:${record.entityKey ?? ''}`;
   const uncertain = (record: UncertainMutationRecord) => {
-    const key = `${record.operationId}:${typeof record.entityKey}:${record.entityKey ?? ''}`;
+    const key = uncertaintyKey(record);
     if (uncertainties.has(key)) return;
     uncertainties.set(key, record);
     emit('mutation:uncertain', record);
@@ -350,6 +352,7 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
       uncertain,
       confirmed: clear,
       canonical(entity, record, previous) {
+        if (destroyed || !uncertainties.has(uncertaintyKey(record))) return;
         clear(record);
         emit('mutation:committed', {
           sessionId: record.sessionId,

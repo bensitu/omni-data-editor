@@ -1,9 +1,64 @@
 import { expect, it, vi } from 'vitest';
 import DataTable from 'datatables.net';
-import { createEditor, textField } from '@omnidataeditor/core';
+import {
+  createEditor,
+  textField,
+  checkboxField,
+  selectField,
+} from '@omnidataeditor/core';
 import { browserFocus, createRendererRegistry } from '@omnidataeditor/dom';
 import { dataTablesHost } from '@omnidataeditor/host-datatables';
 import { inline } from '@omnidataeditor/presentation-inline';
+
+it.each(['checkbox', 'select'] as const)(
+  'keeps Escape available on a read-only %s control',
+  async (kind) => {
+    type Entity = { id: number; enabled: boolean };
+    const fields = [
+      kind === 'checkbox'
+        ? checkboxField<Entity>('enabled', { readOnlyWhen: () => true })
+        : selectField<Entity, boolean>('enabled', {
+            readOnlyWhen: () => true,
+            options: [
+              { value: true, label: 'Enabled' },
+              { value: false, label: 'Disabled' },
+            ],
+          }),
+    ];
+    const anchor = document.createElement('div');
+    document.body.append(anchor);
+    const editor = createEditor({
+      fields,
+      identity: (entity: Entity) => entity.id,
+    });
+    editor.attach({
+      capabilities: {
+        anchor: { resolveFieldAnchor: () => anchor },
+        focus: browserFocus(),
+      },
+      detach() {},
+    });
+    editor.use(inline({ fields }));
+    try {
+      const session = editor.edit({ id: 1, enabled: true });
+      await vi.waitFor(() =>
+        expect(anchor.querySelector('form')).not.toBeNull(),
+      );
+      anchor.querySelector('input, select')!.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      expect(session.snapshot().phase).toBe('cancelled');
+      expect(anchor.querySelector('form')).toBeNull();
+    } finally {
+      await editor.destroy();
+      anchor.remove();
+    }
+  },
+);
 
 it('submits once when an explicit submit blur policy leaves the editor boundary', async () => {
   const fields = [textField<{ id: number; name: string }>('name')];

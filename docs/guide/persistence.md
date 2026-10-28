@@ -23,3 +23,5 @@ Unknown-result snapshots retain their draft and `uncertainties`, including the o
 Presentation contexts expose the session cancellation signal. Asynchronous integrations should stop and settle their mounting work when cancelled. Disposal waits for outstanding integration work and requires idempotent cleanup.
 
 A single-entity submission may persist an unchanged candidate for server-side normalization. Headless drafting and validation do not require persistence; a missing operation port is reported when submission is attempted. Unknown identities remain distinct: numeric and string keys are not interchangeable.
+
+After authoritative reconciliation or an external refresh resolves an uncertain operation, a later response from that operation does not replace the current entity or emit another canonical commit. A success settled immediately before cancellation still confirms the write and updates the host once.

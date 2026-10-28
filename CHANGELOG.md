@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Ignore late mutation responses after authoritative reconciliation and preserve successful reflection when cancellation follows response settlement.
+- Keep host identity mappings current during batch replacements and deliver external removals after unchanged updates.
+- Preserve Escape cancellation on read-only native selection controls.
+
 - Verify signed release archive provenance from the exact publication source and recover existing npm distribution tags.
 - Wait for shared checks before documentation deployment and preserve active deployments.
 - Resolve documentation toolchain advisories with scoped dependency updates and expose complete core and DOM exports from the editor entry point.

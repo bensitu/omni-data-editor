@@ -6,6 +6,31 @@ import { inline } from '@omnidataeditor/presentation-inline';
 import { dataTablesHost } from '@omnidataeditor/host-datatables';
 import { hostContract, type Entity } from '../host-contract/suite.js';
 
+it('reports external removal after an unchanged canonical reflection', async () => {
+  const element = document.createElement('table');
+  document.body.append(element);
+  const entity = { id: 1, name: 'Ada' };
+  const table = new DataTable<Entity>(element, {
+    data: [entity],
+    columns: [{ data: 'name' }],
+  });
+  const removed = vi.fn();
+  const host = dataTablesHost(table, {
+    identity: (value) => value.id,
+    selection: false,
+    onExternalRemoval: removed,
+  });
+  try {
+    await host.capabilities.reflection!.reflectUpdate(entity, entity);
+    table.row(0).remove().draw(false);
+    expect(removed).toHaveBeenCalledWith(1);
+  } finally {
+    host.detach();
+    table.destroy();
+    element.remove();
+  }
+});
+
 hostContract('DataTables', async (notify) => {
   const element = document.createElement('table');
   document.body.append(element);

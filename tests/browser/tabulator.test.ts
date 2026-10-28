@@ -6,6 +6,35 @@ import { tabulatorHost } from '@omnidataeditor/host-tabulator';
 import { hostContract, type Entity } from '../host-contract/suite.js';
 import 'tabulator-tables/dist/css/tabulator.css';
 
+it('rebinds intermediate identities during bulk canonical replacement', async () => {
+  const element = document.createElement('div');
+  document.body.append(element);
+  const data = [
+    { id: 1, name: 'Ada' },
+    { id: 2, name: 'Grace' },
+  ];
+  const table = new TabulatorFull(element, {
+    data,
+    columns: [{ field: 'name', title: 'Name' }],
+  });
+  await new Promise<void>((resolve) => table.on('tableBuilt', resolve));
+  const host = tabulatorHost<Entity>(table, { identity: (value) => value.id });
+  try {
+    await host.capabilities.reflection!.reflectMany!([
+      { previous: data[0]!, current: { id: 3, name: 'First' } },
+      { previous: data[1]!, current: { id: 1, name: 'Second' } },
+    ]);
+    expect(table.getData().map((value: Entity) => value.id)).toEqual([3, 1]);
+    expect(host.capabilities.binding!.resolve(1)).toMatchObject({
+      entity: { name: 'Second' },
+    });
+  } finally {
+    host.detach();
+    table.destroy();
+    element.remove();
+  }
+});
+
 hostContract('Tabulator', async (notify) => {
   const element = document.createElement('div');
   element.style.height = '300px';

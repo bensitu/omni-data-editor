@@ -718,12 +718,18 @@ export class Session<T> implements EditSession<T> {
     }
     this.pendingRecord = undefined;
     if (this.controller.signal.aborted || this.env.destroyed()) {
-      if (definitive?.ok)
+      if (definitive?.ok) {
+        this.env.canonical(
+          definitive.entity,
+          record,
+          this.mode === 'create' ? null : original,
+        );
         return {
           status: 'committed',
           entity: definitive.entity,
           reflection: { status: 'skipped' },
         };
+      }
       if (
         definitive &&
         !definitive.ok &&
@@ -993,13 +999,18 @@ export class Session<T> implements EditSession<T> {
     if (this.controller.signal.aborted || this.env.destroyed()) {
       for (const record of records) {
         const item = result.items.find((item) => item.key === record.entityKey);
-        if (
+        if (item?.outcome.ok)
+          this.env.canonical(
+            item.outcome.entity,
+            record,
+            originalsByKey.get(item.key)!,
+          );
+        else if (
           item &&
-          (item.outcome.ok ||
-            !(
-              item.outcome.kind === 'transport' ||
-              item.outcome.kind === 'unknown'
-            ) ||
+          !item.outcome.ok &&
+          (!(
+            item.outcome.kind === 'transport' || item.outcome.kind === 'unknown'
+          ) ||
             item.outcome.certainty === 'not-committed')
         )
           this.env.confirmed(record);

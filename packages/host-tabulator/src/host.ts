@@ -157,8 +157,8 @@ export function tabulatorHost<T extends object>(
       async reflectMany(updates) {
         ensure();
         reflecting++;
-        table.blockRedraw();
         try {
+          table.blockRedraw();
           for (const update of updates)
             await capabilities.reflection!.reflectUpdate(
               update.previous,
@@ -195,6 +195,7 @@ export function tabulatorHost<T extends object>(
       },
       async reflectUpdate(previous, current) {
         const source = row(options.identity(previous)),
+          originalData = source.getData() as T,
           next = source.getNextRow(),
           selected = source.isSelected();
         const collision = table
@@ -226,13 +227,16 @@ export function tabulatorHost<T extends object>(
             );
           } catch (cause) {
             const restored = await table.addRow(
-              previous,
+              originalData,
               successor ? true : false,
               successor,
             );
+            rows.set(options.identity(previous), restored);
             if (selected) restored.select();
             throw cause;
           }
+          rows.delete(options.identity(previous));
+          rows.set(options.identity(current), replacement);
           if (selected) replacement.select();
         } finally {
           reflecting--;

@@ -55,8 +55,10 @@ export function dataTablesHost<T extends object>(
         (entity, i) =>
           entity === references[i] && positions[i] === rowIndices[i],
       )
-    )
+    ) {
+      expected.clear();
       return;
+    }
     const current = new Map<EntityKey, T>();
     const nextIndices = new Map<EntityKey, number>();
     data.forEach((entity, i) => {

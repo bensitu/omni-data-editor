@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Ignore stale mutation responses after authoritative resolution and reflect successes settled immediately before cancellation.
+
 - Validate calendar dates and local date-time components without implicit timezone conversion.
 
 - Prefer optional host bulk reflection after committing all successful batch results.
