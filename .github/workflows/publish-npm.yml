@@ -1,18 +1,20 @@
 name: Publish npm packages
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
-        description: Version of an already published GitHub release
+        description: Version to retry; select the matching release tag as the workflow source
         required: true
         type: string
       npm_tag:
-        description: npm distribution tag
+        description: npm distribution tag; auto selects the version's release channel
         required: true
         type: choice
-        default: latest
-        options: [latest, next, alpha, beta, rc]
+        default: auto
+        options: [auto, latest, next, alpha, beta, rc]
       authentication:
         description: Use an npm token for first publication; otherwise use trusted publishing
         required: true
@@ -64,8 +66,8 @@ jobs:
           fi
       - name: Verify and publish original release archives
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
-          RELEASE_NPM_TAG: ${{ inputs.npm_tag }}
+          RELEASE_VERSION: ${{ github.event.release.tag_name || inputs.version }}
+          RELEASE_NPM_TAG: ${{ inputs.npm_tag || 'auto' }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           NODE_AUTH_TOKEN: ${{ inputs.authentication == 'npm-token' && secrets.NPM_TOKEN || '' }}

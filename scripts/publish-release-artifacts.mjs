@@ -2,12 +2,13 @@ import { mkdir, mkdtemp, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
-import { gt } from 'semver';
+import { gt, prerelease } from 'semver';
 import { setTimeout as delay } from 'node:timers/promises';
 import { run } from './process.mjs';
 import {
   capture,
   readPackages,
+  releaseVersion,
   repository,
   requireReleaseWorkflow,
   validateReleaseTag,
@@ -15,6 +16,20 @@ import {
 } from './release-utils.mjs';
 
 const registry = 'https://registry.npmjs.org';
+
+export function resolvePublicationTarget(input, tag = 'auto') {
+  const version = releaseVersion(input);
+  if (tag === 'auto') {
+    const identifiers = prerelease(version);
+    const channel = String(identifiers?.[0]);
+    tag = identifiers
+      ? ['alpha', 'beta', 'rc'].includes(channel)
+        ? channel
+        : 'next'
+      : 'latest';
+  }
+  return validateReleaseTag(version, tag);
+}
 
 export async function inspectPublishedArtifact(artifact, tag) {
   const name = encodeURIComponent(artifact.name);
@@ -132,7 +147,7 @@ async function publishCli() {
   const { values } = parseArgs({
     options: { version: { type: 'string' }, tag: { type: 'string' } },
   });
-  const { version, tag } = validateReleaseTag(values.version, values.tag);
+  const { version, tag } = resolvePublicationTarget(values.version, values.tag);
   const releaseTag = `v${version}`;
   if (process.env.GITHUB_REF !== `refs/tags/${releaseTag}`)
     throw new Error(

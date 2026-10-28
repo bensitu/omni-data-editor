@@ -157,7 +157,7 @@ export function requireReleaseWorkflow({ allowTag = false } = {}) {
     process.env.GITHUB_REPOSITORY !== repository
   )
     throw new Error(
-      'Run this operation through the authorized manual release workflow.',
+      'Run this operation through the authorized release workflow.',
     );
 }
 
