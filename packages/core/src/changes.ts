@@ -41,6 +41,12 @@ export function terminal(phase: SessionPhase): boolean {
 }
 
 export function identifier(): string {
+  if (!globalThis.crypto?.getRandomValues)
+    throw editorError(
+      'configuration',
+      'crypto-unavailable',
+      'A cryptographic random number generator is required.',
+    );
   if (typeof globalThis.crypto.randomUUID === 'function')
     return globalThis.crypto.randomUUID();
   const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));

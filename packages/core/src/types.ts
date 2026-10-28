@@ -228,6 +228,7 @@ export type SessionConflict<T> =
 
 /** Observable session state. Applications must treat entity and field values as immutable. */
 export interface SessionSnapshot<T> {
+  readonly uncertainties?: readonly UncertainMutationRecord[];
   readonly batch?: BatchMutationOutcome<T>;
   readonly externalChangePolicy?: ExternalChangePolicy;
   readonly sessionId: string;
@@ -403,6 +404,7 @@ export interface BatchMutationPort<T> {
   ): Promise<BatchMutationOutcome<T>>;
 }
 export interface UncertainMutationRecord {
+  readonly cause?: unknown;
   readonly sessionId: string;
   readonly operationId: string;
   readonly clientMutationId: string;
@@ -439,6 +441,7 @@ export interface ExternalChangeMeta {
   readonly source: string;
 }
 export interface EditorOptions<T> {
+  readonly validationConcurrency?: number;
   readonly identity?: EntityIdentity<T>;
   readonly fields: readonly FieldDefinition<T, unknown>[];
   readonly createInitial?: () => T;
@@ -471,6 +474,7 @@ export interface HostConnection<T> {
   detach(): void | Promise<void>;
 }
 export interface PresentationContext<T> {
+  readonly signal?: AbortSignal;
   getSnapshot(): SessionSnapshot<T>;
   subscribe(listener: SessionListener<T>): Unsubscribe;
   dispatch(command: EditorCommand): CommandOutcome;

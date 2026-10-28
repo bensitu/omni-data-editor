@@ -25,11 +25,22 @@ export async function validateCandidate<T>(
         ...(fieldId && !issue.fieldId ? { fieldId } : {}),
       });
   };
+  const values = new Map(
+    options.fields.map((field) => [field.id, field.read(candidate)]),
+  );
   for (const field of options.fields) {
+    const predicate = {
+      candidate,
+      fieldId: field.id,
+      revision,
+      mode: entity === null ? ('create' as const) : ('edit' as const),
+      values,
+    };
+    if (field.visibleWhen?.(predicate) === false) continue;
     for (const validator of field.validators ?? []) {
       if (signal.aborted) return issues;
       collect(
-        await validator(field.read(candidate), {
+        await validator(values.get(field.id), {
           entity,
           candidate,
           fieldId: field.id,

@@ -134,7 +134,10 @@ describe('Entity sessions', () => {
     const editor = createEditor<Employee>({ fields });
     expect(() => editor.create()).toThrow(/initial/);
     expect(() => editor.editMany([employee])).toThrow(/identity/);
-    await expect(editor.remove(employee)).rejects.toThrow(/identity/);
+    await expect(editor.remove(employee)).resolves.toMatchObject({
+      status: 'failed',
+      error: { category: 'configuration' },
+    });
     const session = editor.create({ initial: employee });
     expect(session.snapshot().draft).toMatchObject({
       mode: 'create',

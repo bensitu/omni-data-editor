@@ -9,3 +9,7 @@ Standard Schema is optional and has no runtime dependency. Only its issues are c
 Server validation issues retain their field identifiers and are associated with the submitted revision. Changing a field invalidates the report. Native control parsing happens before `set`; incomplete numbers stay in the control and prevent form submission.
 
 Built-in fields accept `null` and `undefined` as empty semantic values. Required fields report a `required` issue for empty values. Native number and select controls report `undefined` when cleared; custom validators and writers should support the empty values used by their application models. Select and radio field definitions require an options array.
+
+Field validators are skipped when `visibleWhen` returns false for that candidate. Entity and schema validators still validate the complete entity. Disabled and read-only fields retain their domain validation; conditional entity rules should explicitly express when a value is applicable. `validationConcurrency` limits simultaneous entity validation (default: 8); validators receive cancellation signals when an operation becomes obsolete or a parallel validator fails.
+
+Built-in required text follows native presence semantics: whitespace is a value. Use a custom validator for trimmed text or additional date, text-length, or domain constraints. Equality is configurable for structured values. Snapshots remain reference-stable between notifications and expose immutable data; applications must not mutate their maps, sets or referenced entities.

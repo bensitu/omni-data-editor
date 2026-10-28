@@ -27,6 +27,14 @@ interface Reflection<T> {
 
 /** Create a headless editing runtime with one active session and explicit persistence. */
 export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
+  if (
+    options.validationConcurrency !== undefined &&
+    (!Number.isSafeInteger(options.validationConcurrency) ||
+      options.validationConcurrency < 1)
+  )
+    throw configurationError(
+      'Validation concurrency must be a positive integer.',
+    );
   const fieldIds = new Set<string>(),
     paths = new Set<string>();
   for (const field of options.fields) {
@@ -72,9 +80,9 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
       );
     return key;
   };
-  const log = (code: string) => {
+  const log = (code: string, cause?: unknown) => {
     try {
-      options.logger?.log('warn', code);
+      options.logger?.log('warn', code, { cause });
     } catch {
       /* Logging must not change command results. */
     }
@@ -86,8 +94,8 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
     for (const listener of [...(events.get(event) ?? [])]) {
       try {
         listener(payload as never);
-      } catch {
-        log('observer-failed');
+      } catch (cause) {
+        log('observer-failed', cause);
       }
     }
   };
@@ -158,6 +166,7 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
     return wrapped;
   };
   const context = (current: Session<T>): PresentationContext<T> => ({
+    signal: current.controller.signal,
     getSnapshot: () => current.snapshot(),
     subscribe: (listener) => current.subscribe(listener),
     capabilities: host?.capabilities ?? {},
@@ -203,9 +212,9 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
     try {
       const result = plugin.mount(context(current));
       if (result === undefined) return;
-      const pending = Promise.resolve(result).catch(() => {
+      const pending = Promise.resolve(result).catch((cause) => {
         current.cancel('presentation-failed');
-        log('presentation-failed');
+        log('presentation-failed', cause);
       });
       const operations = mounts.get(plugin) ?? new Set();
       mounts.set(plugin, operations);
@@ -221,7 +230,7 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
   const pendingFor = (entities: readonly T[], mode: string) =>
     [...uncertainties.values()].filter(
       (record) =>
-        record.entityKey === undefined ||
+        (record.entityKey === undefined && mode === 'create') ||
         (mode !== 'create' &&
           entities.some((entity) => identity(entity) === record.entityKey)),
     );
@@ -229,6 +238,7 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
     records: readonly UncertainMutationRecord[],
     entities: readonly T[],
     signal: AbortSignal,
+    removal = false,
   ): Promise<T[]> => {
     const canonical = [...entities];
     for (const record of records) {
@@ -255,7 +265,15 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
           'operation-cancelled',
           'The operation was cancelled.',
         );
-      if (result.kind === 'unknown')
+      if (
+        !result ||
+        !['present', 'absent'].includes(result.kind) ||
+        (result.kind === 'absent' && result.authoritative !== true) ||
+        (result.kind === 'present' &&
+          (result.entity == null ||
+            (record.entityKey !== undefined &&
+              identity(result.entity) !== record.entityKey)))
+      )
         throw editorError(
           'reconciliation',
           'reconciliation-required',
@@ -275,7 +293,11 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
           (entity) => identity(entity) === record.entityKey,
         );
         if (index >= 0) {
-          if (result.kind === 'absent')
+          if (result.kind === 'absent' && removal) {
+            canonical.splice(index, 1);
+            continue;
+          }
+          if (result.kind !== 'present')
             throw editorError(
               'reconciliation',
               'entity-absent',
@@ -293,7 +315,9 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
   ) => {
     assertAlive();
     if (removing || (session && !terminal(session.phase)))
-      throw configurationError(
+      throw editorError(
+        'mutation',
+        'operation-busy',
         'Only one active operation is allowed per editor.',
       );
     if (mode === 'multi-edit' || (host && mode !== 'create'))
@@ -321,33 +345,55 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
       emit,
       uncertain,
       confirmed: clear,
-      canonical(entity, record) {
+      canonical(entity, record, previous) {
         clear(record);
         emit('mutation:committed', {
           sessionId: record.sessionId,
           operationId: record.operationId,
           entity,
         });
+        void reflect(previous, entity, record.sessionId);
       },
       reflect,
     });
     session = current;
     emit('session:opened', { sessionId: current.id, mode });
     if (records.length) {
-      void reconcile(records, entities, current.controller.signal)
-        .then((canonical) => {
-          current.ready(canonical);
-          if (!terminal(current.phase)) mount(current);
-        })
-        .catch(() => {
+      void reconcile(records, entities, current.controller.signal).then(
+        (canonical) => {
+          try {
+            current.ready(canonical);
+            if (!terminal(current.phase)) mount(current);
+          } catch (cause) {
+            current.cancel('presentation-failed');
+            log('presentation-failed', cause);
+          }
+        },
+        (cause) => {
           current.cancel('reconciliation-required');
-          log('reconciliation-required');
-        });
+          log('reconciliation-required', cause);
+        },
+      );
     } else {
-      current.ready();
-      mount(current);
+      try {
+        current.ready();
+        mount(current);
+      } catch (cause) {
+        current.cancel('session-unavailable');
+        throw cause;
+      }
     }
-    return current;
+    return Object.freeze({
+      id: current.id,
+      snapshot: () => current.snapshot(),
+      set: current.set.bind(current),
+      reset: current.reset.bind(current),
+      validate: current.validate.bind(current),
+      submit: current.submit.bind(current),
+      resolveConflict: current.resolveConflict.bind(current),
+      cancel: current.cancel.bind(current),
+      subscribe: current.subscribe.bind(current),
+    });
   };
   const runtime: EditorRuntime<T> = {
     edit(entity) {
@@ -376,8 +422,19 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
       return open('multi-edit', entities);
     },
     async remove(entity): Promise<RemoveOutcome> {
-      assertAlive();
-      const entityKey = identity(entity);
+      let entityKey: EntityKey;
+      try {
+        assertAlive();
+        entityKey = identity(entity);
+      } catch (cause) {
+        return {
+          status: 'failed',
+          error:
+            cause instanceof Error && 'category' in cause
+              ? (cause as import('./types.js').EditorError)
+              : configurationError('Remove requires a valid entity identity.'),
+        };
+      }
       if (!options.persistence?.remove)
         return {
           status: 'failed',
@@ -419,7 +476,33 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
                 'Refresh canonical data before removing this entity.',
               ),
             };
-          entity = (await reconcile(records, [entity], controller.signal))[0]!;
+          const canonical = await reconcile(
+            records,
+            [entity],
+            controller.signal,
+            true,
+          );
+          if (!canonical.length) {
+            removeIdentities.delete(entityKey);
+            const confirmed = records.find(
+              (record) => record.entityKey === entityKey,
+            )!;
+            emit('mutation:removed', {
+              sessionId: confirmed.sessionId,
+              operationId: confirmed.operationId,
+              entityKey,
+            });
+            return {
+              status: 'removed',
+              reflection: await reflect(
+                null,
+                entity,
+                confirmed.sessionId,
+                true,
+              ),
+            };
+          }
+          entity = canonical[0]!;
         }
         const ctx: MutationContext = {
           signal: controller.signal,
@@ -450,8 +533,10 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
             () => undefined,
           );
           result = await aborted(request, controller.signal);
-        } catch {
+        } catch (cause) {
+          log('persistence-failed', cause);
           result = {
+            error: cause,
             ok: false,
             kind: 'transport',
             retryable: true,
@@ -472,8 +557,12 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
         if (result.kind === 'conflict')
           return { status: 'conflict', entityKey };
         if (result.kind === 'transport' && result.certainty === 'unknown') {
-          uncertain(record);
-          return { status: 'uncertain', record };
+          const unknown = {
+            ...record,
+            ...('error' in result ? { cause: result.error } : {}),
+          };
+          uncertain(unknown);
+          return { status: 'uncertain', record: unknown };
         }
         return {
           status: 'failed',

@@ -29,7 +29,9 @@ export function readPath(entity: unknown, path: FieldPath): unknown {
   safePath(path);
   return path.reduce<unknown>(
     (value, key) =>
-      value === null || value === undefined
+      value === null ||
+      value === undefined ||
+      !Object.hasOwn(Object(value), key)
         ? undefined
         : (value as Record<string | number, unknown>)[key],
     entity,
@@ -43,9 +45,11 @@ export function writePath<T>(entity: T, path: FieldPath, value: unknown): T {
     if (key === undefined) return value;
     if (
       source !== null &&
-      typeof source === 'object' &&
-      !Array.isArray(source) &&
-      ![Object.prototype, null].includes(Object.getPrototypeOf(source))
+      source !== undefined &&
+      (typeof source !== 'object' ||
+        (!Array.isArray(source) &&
+          Object.getPrototypeOf(source) !== null &&
+          Object.getPrototypeOf(Object.getPrototypeOf(source)) !== null))
     ) {
       throw configurationError(
         'Automatic field writers support plain objects and arrays. Supply accessors for custom models.',
@@ -53,9 +57,15 @@ export function writePath<T>(entity: T, path: FieldPath, value: unknown): T {
     }
     const copy = (
       Array.isArray(source)
-        ? [...source]
-        : { ...(source as object | undefined) }
+        ? source.slice()
+        : source === null || source === undefined
+          ? typeof key === 'number'
+            ? []
+            : {}
+          : { ...source }
     ) as Record<string | number, unknown>;
+    if (Array.isArray(copy) && key === 'length')
+      throw configurationError('Array length cannot be used as a field path.');
     copy[key] = replace(copy[key], depth + 1);
     return copy;
   };

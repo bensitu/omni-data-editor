@@ -39,7 +39,11 @@ export interface SessionEnvironment<T> {
   ): void;
   uncertain(record: UncertainMutationRecord): void;
   confirmed(record: UncertainMutationRecord): void;
-  canonical(entity: T, record: UncertainMutationRecord): void;
+  canonical(
+    entity: T,
+    record: UncertainMutationRecord,
+    previous: T | null,
+  ): void;
   reflect(
     previous: T | null,
     current: T,
@@ -61,6 +65,11 @@ export class Session<T> implements EditSession<T> {
   private conflicts = new Map<EntityKey, SessionConflict<T>>();
   private batchResult: BatchMutationOutcome<T> | undefined;
   private batchRecords: readonly UncertainMutationRecord[] = [];
+  private uncertainties: readonly UncertainMutationRecord[] = [];
+  private publishing = false;
+  private notificationDepth = 0;
+  private publishPending = false;
+  private deferredExternal = new Map<EntityKey, T | undefined>();
   private listeners = new Set<SessionListener<T>>();
   private validationOperation:
     | {
@@ -72,6 +81,7 @@ export class Session<T> implements EditSession<T> {
   private activeOperationId: string | undefined;
   private clientMutationId = identifier();
   private pendingRecord: UncertainMutationRecord | undefined;
+  private snapshotCache: SessionSnapshot<T> | undefined;
   private draftCache:
     | Pick<SessionSnapshot<T>, 'revision' | 'draft' | 'changeSet' | 'dirty'>
     | undefined;
@@ -93,20 +103,28 @@ export class Session<T> implements EditSession<T> {
       this.draftCache = undefined;
     }
     this.move('editing');
+    for (const [key, entity] of this.deferredExternal)
+      this.external(entity, key);
+    this.deferredExternal.clear();
     this.publish();
   }
 
   private move(to: SessionPhase): void {
     this.phase = transition(this.phase, to);
+    this.snapshotCache = undefined;
   }
 
   snapshot(): SessionSnapshot<T> {
+    if (this.snapshotCache) return this.snapshotCache;
     const data =
       this.draftCache?.revision === this.revision
         ? this.draftCache
         : (this.draftCache = this.snapshotDraft());
-    return {
+    return (this.snapshotCache = {
       ...data,
+      ...(this.uncertainties.length
+        ? { uncertainties: this.uncertainties }
+        : {}),
       ...(this.batchResult ? { batch: this.batchResult } : {}),
       externalChangePolicy: this.env.options.externalChangePolicy ?? 'notify',
       sessionId: this.id,
@@ -118,7 +136,7 @@ export class Session<T> implements EditSession<T> {
       ...(this.activeOperationId
         ? { activeOperationId: this.activeOperationId }
         : {}),
-    };
+    });
   }
 
   private snapshotDraft(): Pick<
@@ -203,25 +221,41 @@ export class Session<T> implements EditSession<T> {
     };
   }
 
-  private publish(): void {
-    const snapshot = this.snapshot();
-    for (const listener of [...this.listeners]) {
-      try {
-        listener(snapshot);
-      } catch {
-        try {
-          this.env.options.logger?.log('warn', 'observer-failed', {
-            sessionId: this.id,
-          });
-        } catch {
-          /* Diagnostics are isolated from command results. */
-        }
-      }
+  private diagnose(code: string, cause?: unknown): void {
+    try {
+      this.env.options.logger?.log('warn', code, { sessionId: this.id, cause });
+    } catch {
+      /* Diagnostics are isolated from command results. */
     }
-    this.env.emit('session:changed', {
-      sessionId: this.id,
-      revision: this.revision,
-    });
+  }
+
+  private publish(): void {
+    this.snapshotCache = undefined;
+    this.publishPending = true;
+    if (this.publishing || this.notificationDepth) return;
+    this.publishing = true;
+    try {
+      while (this.publishPending) {
+        this.publishPending = false;
+        const snapshot = this.snapshot();
+        for (const listener of [...this.listeners]) {
+          try {
+            listener(snapshot);
+          } catch (cause) {
+            this.diagnose('observer-failed', cause);
+          }
+          if (this.publishPending) break;
+        }
+        if (!this.publishPending)
+          this.env.emit('session:changed', {
+            sessionId: this.id,
+            revision: this.revision,
+          });
+      }
+    } finally {
+      this.publishing = false;
+      if (terminal(this.phase)) this.listeners.clear();
+    }
   }
 
   subscribe(listener: SessionListener<T>): () => void {
@@ -250,6 +284,7 @@ export class Session<T> implements EditSession<T> {
   }
 
   private invalidate(): void {
+    this.snapshotCache = undefined;
     if (this.validationOperation) {
       this.validationOperation.obsolete = 'stale';
       this.validationOperation.controller.abort();
@@ -317,7 +352,15 @@ export class Session<T> implements EditSession<T> {
         status: 'rejected',
         error: configurationError(`Unknown field: ${fieldId}.`),
       };
-    const changed = fields.some((field) => this.overrides.has(field.id));
+    const changed = fields.some((field) =>
+      this.candidates.some(
+        (candidate, index) =>
+          !(field.equals ?? Object.is)(
+            field.read(candidate),
+            field.read(this.baselines[index]!),
+          ),
+      ),
+    );
     if (!changed) return { status: 'unchanged' };
     try {
       this.candidates = this.candidates.map((candidate, index) =>
@@ -405,22 +448,45 @@ export class Session<T> implements EditSession<T> {
     try {
       issues = (
         await aborted(
-          Promise.all(
-            this.candidates.map((candidate, index) =>
-              validateCandidate(
-                this.env.options,
-                this.mode === 'create' ? null : this.baselines[index]!,
-                candidate,
-                revision,
-                operation.controller.signal,
+          (async () => {
+            const reports: ValidationReport['issues'][] = new Array(
+              this.candidates.length,
+            );
+            let next = 0;
+            const worker = async () => {
+              while (!operation.controller.signal.aborted) {
+                const index = next++;
+                if (index >= this.candidates.length) return;
+                reports[index] = await validateCandidate(
+                  this.env.options,
+                  this.mode === 'create' ? null : this.baselines[index]!,
+                  this.candidates[index]!,
+                  revision,
+                  operation.controller.signal,
+                );
+              }
+            };
+            await Promise.all(
+              Array.from(
+                {
+                  length: Math.min(
+                    this.candidates.length,
+                    this.env.options.validationConcurrency ?? 8,
+                  ),
+                },
+                worker,
               ),
-            ),
-          ),
+            );
+            return reports;
+          })(),
           operation.controller.signal,
         )
       ).flat();
-    } catch {
-      issues = operation.controller.signal.aborted
+    } catch (cause) {
+      const cancelled = operation.controller.signal.aborted;
+      operation.controller.abort();
+      if (!cancelled) this.diagnose('validation-unavailable', cause);
+      issues = cancelled
         ? []
         : [
             {
@@ -476,6 +542,49 @@ export class Session<T> implements EditSession<T> {
     if (this.conflict) return { status: 'conflict', conflict: this.conflict };
     const operationId = identifier();
     this.activeOperationId = operationId;
+    try {
+      return await this.submitValidated(operationId);
+    } catch (cause) {
+      this.diagnose('submission-failed', cause);
+      const records = this.pendingRecord
+        ? [this.pendingRecord]
+        : this.batchRecords;
+      this.pendingRecord = undefined;
+      this.batchRecords = [];
+      if (records.length) {
+        this.uncertainties = records.map((record) => ({ ...record, cause }));
+        for (const record of this.uncertainties) this.env.uncertain(record);
+        this.cancel('reconciliation-required');
+      } else if (!terminal(this.phase) && this.phase !== 'editing')
+        this.move('editing');
+      const error = editorError(
+        'mutation',
+        'submission-failed',
+        'The data could not be saved.',
+        cause,
+      );
+      this.env.emit('mutation:failed', {
+        sessionId: this.id,
+        operationId,
+        error,
+      });
+      try {
+        this.publish();
+      } catch (cause) {
+        this.diagnose('snapshot-failed', cause);
+      }
+      return { status: 'failed', error };
+    } finally {
+      if (this.activeOperationId === operationId) {
+        this.activeOperationId = undefined;
+        this.snapshotCache = undefined;
+      }
+    }
+  }
+
+  private async submitValidated(
+    operationId: string,
+  ): Promise<SubmitOutcome<T>> {
     const report = await this.performValidation(operationId);
     if (this.controller.signal.aborted)
       return { status: 'cancelled', beforeDispatch: true };
@@ -549,6 +658,15 @@ export class Session<T> implements EditSession<T> {
     } catch (cause) {
       dispatched = Promise.reject(cause);
     }
+    dispatched = dispatched.then((outcome) => {
+      if (!this.validMutation(outcome))
+        throw editorError(
+          'invariant',
+          'invalid-mutation-result',
+          'Persistence must return a structured result with a canonical entity on success.',
+        );
+      return outcome;
+    });
     let definitive: MutationOutcome<T> | undefined;
     dispatched.then(
       (outcome) => {
@@ -558,7 +676,11 @@ export class Session<T> implements EditSession<T> {
           this.controller.signal.aborted &&
           !this.env.destroyed()
         )
-          this.env.canonical(outcome.entity, record);
+          this.env.canonical(
+            outcome.entity,
+            record,
+            this.mode === 'create' ? null : original,
+          );
         else if (
           this.controller.signal.aborted &&
           !outcome.ok &&
@@ -572,8 +694,10 @@ export class Session<T> implements EditSession<T> {
     let outcome: MutationOutcome<T>;
     try {
       outcome = await aborted(dispatched, this.controller.signal);
-    } catch {
+    } catch (cause) {
+      this.diagnose('persistence-failed', cause);
       outcome = {
+        error: cause,
         ok: false,
         kind: 'transport',
         retryable: true,
@@ -652,13 +776,20 @@ export class Session<T> implements EditSession<T> {
       this.env.options.identity
     ) {
       this.external(outcome.remote, this.env.options.identity(original));
-      return { status: 'conflict', conflict: this.conflict! };
+      return this.conflict
+        ? { status: 'conflict', conflict: this.conflict }
+        : { status: 'superseded', operationId };
     }
     if (
       (outcome.kind === 'transport' || outcome.kind === 'unknown') &&
       outcome.certainty !== 'not-committed'
     ) {
-      const unknown = { ...record, reason: 'transport-unknown' as const };
+      const unknown = {
+        ...record,
+        reason: 'transport-unknown' as const,
+        ...('error' in outcome ? { cause: outcome.error } : {}),
+      };
+      this.uncertainties = [unknown];
       this.env.uncertain(unknown);
       this.cancel('reconciliation-required');
       return { status: 'uncertain', record: unknown };
@@ -668,6 +799,14 @@ export class Session<T> implements EditSession<T> {
       'mutation-failed',
       'The data could not be saved.',
     );
+    Object.assign(error, {
+      context: {
+        kind: outcome.kind,
+        ...('retryable' in outcome ? { retryable: outcome.retryable } : {}),
+        ...('message' in outcome ? { serverMessage: outcome.message } : {}),
+      },
+      ...('error' in outcome ? { cause: outcome.error } : {}),
+    });
     this.env.emit('mutation:failed', {
       sessionId: this.id,
       operationId,
@@ -675,6 +814,41 @@ export class Session<T> implements EditSession<T> {
     });
     this.publish();
     return { status: 'failed', error };
+  }
+
+  private validMutation(result: MutationOutcome<T>): boolean {
+    if (result === null || typeof result !== 'object') return false;
+    if (result.ok === true)
+      return (
+        Object.hasOwn(result, 'entity') &&
+        result.entity !== undefined &&
+        result.entity !== null
+      );
+    if (result.ok !== false) return false;
+    switch (result.kind) {
+      case 'validation':
+        return (
+          Array.isArray(result.issues) &&
+          result.issues.every(
+            (issue) => issue != null && typeof issue.code === 'string',
+          )
+        );
+      case 'conflict':
+      case 'forbidden':
+        return true;
+      case 'transport':
+        return (
+          typeof result.retryable === 'boolean' &&
+          ['not-committed', 'unknown'].includes(result.certainty)
+        );
+      case 'unknown':
+        return (
+          result.certainty === undefined ||
+          ['not-committed', 'unknown'].includes(result.certainty)
+        );
+      default:
+        return false;
+    }
   }
 
   private async submitBatch(
@@ -709,6 +883,12 @@ export class Session<T> implements EditSession<T> {
     this.publish();
     if (this.controller.signal.aborted)
       return { status: 'cancelled', beforeDispatch: true };
+    const recordsByKey = new Map(
+      records.map((record) => [record.entityKey, record]),
+    );
+    const originalsByKey = new Map(
+      entities.map((entity) => [entity.key, entity.original]),
+    );
     this.batchRecords = records;
     let result: BatchMutationOutcome<T>;
     if (!entities.length) result = { atomicity: 'non-atomic', items: [] };
@@ -723,41 +903,12 @@ export class Session<T> implements EditSession<T> {
         dispatched = Promise.reject(cause);
       }
       const requestedKeys = new Set(entities.map((entity) => entity.key));
-      const validOutcome = (result: MutationOutcome<T>): boolean => {
-        if (result === null || typeof result !== 'object') return false;
-        if (result.ok === true) return Object.hasOwn(result, 'entity');
-        if (result.ok !== false) return false;
-        switch (result.kind) {
-          case 'validation':
-            return (
-              Array.isArray(result.issues) &&
-              result.issues.every(
-                (issue) => issue != null && typeof issue.code === 'string',
-              )
-            );
-          case 'conflict':
-          case 'forbidden':
-            return true;
-          case 'transport':
-            return (
-              typeof result.retryable === 'boolean' &&
-              ['not-committed', 'unknown'].includes(result.certainty)
-            );
-          case 'unknown':
-            return (
-              result.certainty === undefined ||
-              ['not-committed', 'unknown'].includes(result.certainty)
-            );
-          default:
-            return false;
-        }
-      };
       const valid = (outcome: BatchMutationOutcome<T>) =>
         outcome != null &&
         Array.isArray(outcome.items) &&
         outcome.items.length === entities.length &&
         Array.from(outcome.items).every(
-          (item) => item != null && validOutcome(item.outcome),
+          (item) => item != null && this.validMutation(item.outcome),
         ) &&
         new Set(outcome.items.map((item) => item.key)).size ===
           entities.length &&
@@ -788,11 +939,13 @@ export class Session<T> implements EditSession<T> {
           authoritative = outcome;
           if (!this.controller.signal.aborted || this.env.destroyed()) return;
           for (const item of outcome.items) {
-            const record = records.find(
-              (record) => record.entityKey === item.key,
-            )!;
+            const record = recordsByKey.get(item.key)!;
             if (item.outcome.ok)
-              this.env.canonical(item.outcome.entity, record);
+              this.env.canonical(
+                item.outcome.entity,
+                record,
+                originalsByKey.get(item.key)!,
+              );
             else if (
               !(
                 item.outcome.kind === 'transport' ||
@@ -881,14 +1034,15 @@ export class Session<T> implements EditSession<T> {
           outcome.certainty !== 'not-committed'
         ) {
           unresolved.push({
-            ...records.find((record) => record.entityKey === item.key)!,
+            ...recordsByKey.get(item.key)!,
+            ...('error' in outcome ? { cause: outcome.error } : {}),
             reason: 'transport-unknown',
           });
           uncertain = true;
         } else
           errors.push({
             code: 'entity-save-failed',
-            message: 'An entity could not be saved.',
+            messageKey: 'entity-save-failed',
             params: { entityKey: item.key },
           });
       }
@@ -900,10 +1054,21 @@ export class Session<T> implements EditSession<T> {
     this.conflict = this.conflicts.values().next().value;
     this.move(complete ? 'committed' : 'editing');
     if (complete) this.overrides.clear();
-    for (const conflict of conflicts)
-      this.external(conflict.remote, conflict.key);
-    if (uncertain) this.cancel('reconciliation-required');
-    else this.publish();
+    this.notificationDepth++;
+    try {
+      for (const conflict of conflicts)
+        this.external(
+          conflict.remote,
+          conflict.key,
+          baselineIndices.get(conflict.key),
+        );
+    } finally {
+      this.notificationDepth--;
+    }
+    if (uncertain) {
+      this.uncertainties = unresolved;
+      this.cancel('reconciliation-required');
+    } else this.publish();
     if (complete) this.listeners.clear();
     for (const record of unresolved) this.env.uncertain(record);
     for (const item of committed) {
@@ -924,12 +1089,18 @@ export class Session<T> implements EditSession<T> {
     return { status: 'batch', result, reflections };
   }
 
-  external(remote: T | undefined, key: EntityKey): void {
+  external(remote: T | undefined, key: EntityKey, knownIndex?: number): void {
+    if (this.phase === 'opening') {
+      this.deferredExternal.set(key, remote);
+      return;
+    }
     if (terminal(this.phase) || this.env.destroyed() || this.mode === 'create')
       return;
-    const index = this.baselines.findIndex(
-      (entity) => this.env.options.identity?.(entity) === key,
-    );
+    const index =
+      knownIndex ??
+      this.baselines.findIndex(
+        (entity) => this.env.options.identity?.(entity) === key,
+      );
     if (index < 0) return;
     const baseline = this.baselines[index]!,
       candidate = this.candidates[index]!;
@@ -951,6 +1122,21 @@ export class Session<T> implements EditSession<T> {
         baseline,
         remote,
       ).changes.map((change) => change.fieldId);
+      if (!remoteChangedFieldIds.length) {
+        if (this.phase === 'submitting') return;
+        let rebased: T = remote;
+        for (const field of this.env.options.fields)
+          if (localDirtyFieldIds.includes(field.id))
+            rebased = field.write(rebased, field.read(candidate));
+        this.baselines[index] = remote;
+        this.candidates[index] = rebased;
+        this.conflicts.delete(key);
+        this.conflict = this.conflicts.values().next().value;
+        this.invalidate();
+        this.clientMutationId = identifier();
+        this.publish();
+        return;
+      }
       const conflictingFieldIds = remoteChangedFieldIds.filter((id) => {
         const field = this.env.options.fields.find((field) => field.id === id)!;
         return (
@@ -991,6 +1177,22 @@ export class Session<T> implements EditSession<T> {
   resolveConflict(decision: ConflictResolution): CommandOutcome {
     const rejected = this.writable();
     if (rejected) return rejected;
+    if (
+      !['accept-remote', 'rebase-local', 'merge'].includes(decision.kind) ||
+      (decision.kind === 'merge' &&
+        (!decision.fields ||
+          Object.entries(decision.fields).some(
+            ([id, choice]) =>
+              !this.env.options.fields.some((field) => field.id === id) ||
+              !['local', 'remote'].includes(choice),
+          )))
+    )
+      return {
+        status: 'rejected',
+        error: configurationError(
+          'Conflict decisions must reference registered fields and local or remote values.',
+        ),
+      };
     const conflict = this.conflict;
     if (!conflict) return { status: 'unchanged' };
     if (conflict.kind === 'deleted') {
@@ -1003,36 +1205,53 @@ export class Session<T> implements EditSession<T> {
             'A deleted entity cannot be rebased or merged.',
           ),
         };
-      this.conflict = undefined;
-      this.cancel('remote-entity-deleted');
+      if (this.mode === 'multi-edit' && this.baselines.length > 1) {
+        const index = this.baselines.findIndex(
+          (entity) =>
+            this.env.options.identity?.(entity) === conflict.entityKey,
+        );
+        this.baselines.splice(index, 1);
+        this.candidates.splice(index, 1);
+        this.conflicts.delete(conflict.entityKey);
+        this.conflict = this.conflicts.values().next().value;
+        this.invalidate();
+        this.clientMutationId = identifier();
+        this.publish();
+      } else {
+        this.conflict = undefined;
+        this.cancel('remote-entity-deleted');
+      }
       return { status: 'ok' };
     }
     const index = this.baselines.findIndex(
       (entity) => this.env.options.identity?.(entity) === conflict.entityKey,
     );
     let candidate = conflict.remote;
-    for (const field of this.env.options.fields) {
-      if (
-        decision.kind !== 'accept-remote' &&
-        conflict.localDirtyFieldIds.includes(field.id) &&
-        (decision.kind !== 'merge' || decision.fields[field.id] !== 'remote')
-      )
-        candidate = field.write(candidate, field.read(conflict.localCandidate));
+    try {
+      for (const field of this.env.options.fields) {
+        if (
+          decision.kind !== 'accept-remote' &&
+          conflict.localDirtyFieldIds.includes(field.id) &&
+          (decision.kind !== 'merge' || decision.fields[field.id] !== 'remote')
+        )
+          candidate = field.write(
+            candidate,
+            field.read(conflict.localCandidate),
+          );
+      }
+    } catch (cause) {
+      return {
+        status: 'rejected',
+        error: editorError(
+          'validation',
+          'field-write-failed',
+          'The conflict decision could not be applied.',
+          cause,
+        ),
+      };
     }
     this.baselines[index] = conflict.remote;
     this.candidates[index] = candidate;
-    for (const field of this.env.options.fields) {
-      if (
-        !this.candidates.some(
-          (entity, i) =>
-            !(field.equals ?? Object.is)(
-              field.read(entity),
-              field.read(this.baselines[i]!),
-            ),
-        )
-      )
-        this.overrides.delete(field.id);
-    }
     this.conflicts.delete(conflict.entityKey);
     this.conflict = this.conflicts.values().next().value;
     this.invalidate();
@@ -1058,8 +1277,11 @@ export class Session<T> implements EditSession<T> {
       sessionId: this.id,
       ...(reason !== undefined ? { reason } : {}),
     });
-    this.publish();
-    this.listeners.clear();
+    try {
+      this.publish();
+    } catch (cause) {
+      this.diagnose('snapshot-failed', cause);
+    }
   }
 
   dispose(): void {
