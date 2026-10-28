@@ -1,5 +1,9 @@
 # OmniDataEditor
 
+[![MIT license](https://img.shields.io/github/license/bensitu/omni-data-editor)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/%40omnidataeditor/editor)](https://www.npmjs.com/package/@omnidataeditor/editor)
+[![jsDelivr monthly hits](https://img.shields.io/jsdelivr/npm/hm/%40omnidataeditor/editor)](https://www.jsdelivr.com/package/npm/@omnidataeditor/editor)
+
 A framework independent TypeScript entity editing engine with immutable drafts, revision scoped validation, structured persistence and explicit concurrent change handling. Native dialog and inline presentations connect the same runtime to standalone interfaces, DataTables and Tabulator.
 
 OmniDataEditor provides editing behavior around existing interfaces and leaves sorting, filtering, pagination and server storage to the host application. The packages use synchronized 0.x versions; public interfaces may change between minor releases.
