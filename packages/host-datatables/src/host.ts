@@ -15,6 +15,7 @@ export interface DataTablesHostOptions<T> {
   readonly identity: EntityIdentity<T>;
   readonly columns?: Readonly<Record<string, number>>;
   readonly selection?: boolean;
+  readonly dataScope?: 'complete' | 'window';
   readonly onExternalEntity?: (entity: T) => void;
   readonly onExternalRemoval?: (key: EntityKey) => void;
   readonly onDestroy?: () => void;
@@ -29,10 +30,13 @@ export function dataTablesHost<T extends object>(
   options: DataTablesHostOptions<T>,
 ): DataTablesConnection<T> {
   const namespace = `.omnidataeditor${++nextConnection}`;
-  const indices = new Map<EntityKey, number>();
+  let indices = new Map<EntityKey, number>();
   let previous = new Map<EntityKey, T>();
   let detached = false,
     reflecting = 0;
+  const expected = new Map<EntityKey, T | undefined>();
+  let references: T[] = [],
+    rowIndices: number[] = [];
   const ensure = () => {
     if (detached)
       throw editorError(
@@ -42,11 +46,21 @@ export function dataTablesHost<T extends object>(
       );
   };
   const rebuild = (notify: boolean) => {
+    if (reflecting) return;
+    const data = table.rows().data().toArray();
+    const positions = table.rows().indexes().toArray();
+    if (
+      data.length === references.length &&
+      data.every(
+        (entity, i) =>
+          entity === references[i] && positions[i] === rowIndices[i],
+      )
+    )
+      return;
     const current = new Map<EntityKey, T>();
-    indices.clear();
-    table.rows().every(function () {
-      const entity = this.data(),
-        key = options.identity(entity);
+    const nextIndices = new Map<EntityKey, number>();
+    data.forEach((entity, i) => {
+      const key = options.identity(entity);
       if (current.has(key))
         throw editorError(
           'host',
@@ -54,16 +68,28 @@ export function dataTablesHost<T extends object>(
           'Host entity keys must be unique.',
         );
       current.set(key, entity);
-      indices.set(key, this.index());
+      nextIndices.set(key, positions[i]!);
     });
+    indices = nextIndices;
+    references = data;
+    rowIndices = positions;
     const old = previous;
     previous = current;
     if (notify && !reflecting) {
       for (const [key, entity] of current)
-        if (old.get(key) !== entity) options.onExternalEntity?.(entity);
+        if (old.get(key) !== entity && expected.get(key) !== entity)
+          options.onExternalEntity?.(entity);
       for (const key of old.keys())
-        if (!current.has(key)) options.onExternalRemoval?.(key);
+        if (
+          !current.has(key) &&
+          !expected.has(key) &&
+          (options.dataScope ??
+            (table.page.info().serverSide ? 'window' : 'complete')) ===
+            'complete'
+        )
+          options.onExternalRemoval?.(key);
     }
+    expected.clear();
   };
   rebuild(false);
   const row = (key: EntityKey): ApiRowMethods<T> => {
@@ -136,6 +162,43 @@ export function dataTablesHost<T extends object>(
   const capabilities: PresentationCapabilities<T> = {
     binding: { resolve },
     reflection: {
+      async reflectMany(updates) {
+        ensure();
+        rebuild(true);
+        const keys = new Set(indices.keys());
+        for (const update of updates)
+          keys.delete(options.identity(update.previous));
+        const staged = updates.map((update) => {
+          const index = indices.get(options.identity(update.previous));
+          const key = options.identity(update.current);
+          if (index === undefined)
+            throw editorError(
+              'host',
+              'entity-not-found',
+              'The entity is not present in the host.',
+            );
+          if (keys.has(key))
+            throw editorError(
+              'host',
+              'duplicate-entity-key',
+              'The canonical entity key already exists.',
+            );
+          keys.add(key);
+          return { ...update, index, key };
+        });
+        reflecting++;
+        try {
+          for (const update of staged) {
+            expected.set(options.identity(update.previous), undefined);
+            expected.set(update.key, update.current);
+            table.row(update.index).data(update.current);
+          }
+          if (staged.length) table.draw(false);
+        } finally {
+          reflecting--;
+          rebuild(true);
+        }
+      },
       async reflectCreate(entity) {
         ensure();
         rebuild(true);
@@ -146,12 +209,13 @@ export function dataTablesHost<T extends object>(
             'duplicate-entity-key',
             'The canonical entity key already exists.',
           );
+        expected.set(key, entity);
         reflecting++;
         try {
           table.rows.add([entity]).draw(false);
-          rebuild(false);
         } finally {
           reflecting--;
+          rebuild(true);
         }
       },
       async reflectUpdate(previous, current) {
@@ -163,21 +227,25 @@ export function dataTablesHost<T extends object>(
             'duplicate-entity-key',
             'The canonical entity key already exists.',
           );
+        expected.set(options.identity(previous), undefined);
+        expected.set(key, current);
         reflecting++;
         try {
           source.data(current).draw(false);
-          rebuild(false);
         } finally {
           reflecting--;
+          rebuild(true);
         }
       },
       async reflectRemove(entity) {
+        const source = row(options.identity(entity));
+        expected.set(options.identity(entity), undefined);
         reflecting++;
         try {
-          row(options.identity(entity)).remove().draw(false);
-          rebuild(false);
+          source.remove().draw(false);
         } finally {
           reflecting--;
+          rebuild(true);
         }
       },
     },

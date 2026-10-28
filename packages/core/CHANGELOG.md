@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Prefer optional host bulk reflection after committing all successful batch results.
+
 - Isolate uncertain creates, validate reconciliation and mutation results, reflect late success, and confirm authoritative deletions.
 - Order reentrant notifications, recover from application accessor failures, and cache stable snapshots between notifications.
 - Rebase unchanged registered values, bound entity validation concurrency, skip hidden field validators, and preserve unaffected batch targets.

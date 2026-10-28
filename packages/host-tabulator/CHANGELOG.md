@@ -4,6 +4,9 @@
 
 ### Patch Changes
 
+- Reflect canonical updates in batches and rebuild identity mappings only after complete validation.
+- Distinguish windowed datasets from authoritative removal notifications.
+
 - Deliver external changes observed during asynchronous reflection and validate successor rows before canonical insertion.
 - Activate local pages and virtual rows before resolving inline field anchors.
 

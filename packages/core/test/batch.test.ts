@@ -240,3 +240,37 @@ it.each(['accept-remote', 'merge'] as const)(
     expect(session.snapshot().dirty).toBe(false);
   },
 );
+
+it('uses host bulk reflection for all confirmed batch results', async () => {
+  const reflectMany = vi.fn(),
+    reflectUpdate = vi.fn();
+  const editor = createEditor({
+    fields,
+    identity,
+    batchPersistence: {
+      updateMany: async ({ changes }) => ({
+        atomicity: 'atomic',
+        items: changes.entities.map((item) => ({
+          key: item.key,
+          outcome: { ok: true, entity: item.candidate },
+        })),
+      }),
+    },
+  });
+  editor.attach({
+    capabilities: { reflection: { reflectMany, reflectUpdate } },
+    detach() {},
+  });
+  const session = editor.editMany(entities);
+  session.set('salary', 20);
+  expect(await session.submit()).toMatchObject({
+    status: 'batch',
+    reflections: [
+      { reflection: { status: 'applied' } },
+      { reflection: { status: 'applied' } },
+    ],
+  });
+  expect(reflectMany).toHaveBeenCalledTimes(1);
+  expect(reflectMany.mock.calls[0]?.[0]).toHaveLength(2);
+  expect(reflectUpdate).not.toHaveBeenCalled();
+});

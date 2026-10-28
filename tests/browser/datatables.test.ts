@@ -117,3 +117,46 @@ it('refreshes direct data replacements and activates the matching page for inlin
     element.remove();
   }
 });
+
+it('reflects multiple canonical rows with one draw and keeps window changes separate from deletion', async () => {
+  const element = document.createElement('table');
+  document.body.append(element);
+  const data = Array.from({ length: 500 }, (_, id) => ({
+    id,
+    name: `Person ${id}`,
+    obsolete: true,
+  }));
+  const table = new DataTable<Entity>(element, {
+    data,
+    columns: [{ data: 'name' }],
+    order: [],
+  });
+  const removed = vi.fn(),
+    draws = vi.fn();
+  const host = dataTablesHost(table, {
+    identity: (entity) => entity.id,
+    dataScope: 'window',
+    onExternalRemoval: removed,
+    selection: false,
+  });
+  table.on('draw', draws);
+  try {
+    await host.capabilities.reflection!.reflectMany!(
+      data
+        .slice(0, 20)
+        .map((previous) => ({
+          previous,
+          current: { id: previous.id, name: 'Canonical' },
+        })),
+    );
+    expect(draws).toHaveBeenCalledTimes(1);
+    expect(table.row(0).data()).toEqual({ id: 0, name: 'Canonical' });
+    table.clear();
+    table.rows.add([{ id: 900, name: 'Another page' }]).draw(false);
+    expect(removed).not.toHaveBeenCalled();
+  } finally {
+    host.detach();
+    table.destroy();
+    element.remove();
+  }
+});

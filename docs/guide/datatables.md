@@ -25,3 +25,7 @@ Call the connection's `refresh()` after direct data operations that do not draw 
 With inline reveal enabled, the adapter activates the local page containing an available row under the current search and sort. Filtered rows and data on unloaded server pages remain under application control.
 
 Use immutable data when refreshing externally. In place mutation of objects shared with an editing session cannot provide a historical baseline for conflict comparison.
+
+The adapter implements optional `reflection.reflectMany(updates)`. Multiple canonical replacements use one draw and a single completed mapping refresh. Unchanged draws reuse validated identity mappings. Mapping validation completes before replacing the previous lookup state.
+
+`dataScope: 'complete'` infers external removals when rows leave the dataset. `dataScope: 'window'` treats missing rows as unloaded, without inferring deletion. Server-side DataTables uses window scope by default. Applications must send authoritative deletion notifications explicitly for remotely paged data.

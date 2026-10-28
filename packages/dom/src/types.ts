@@ -18,6 +18,9 @@ export interface EntityBindingCapability<T> {
   resolve(target: unknown): HostEntityRef<T> | null;
 }
 export interface MutationReflectionCapability<T> {
+  reflectMany?(
+    updates: readonly { readonly previous: T; readonly current: T }[],
+  ): Promise<void>;
   reflectCreate(entity: T): Promise<void>;
   reflectUpdate(previous: T, current: T): Promise<void>;
   reflectRemove(entity: T): Promise<void>;

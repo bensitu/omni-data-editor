@@ -16,6 +16,7 @@ export interface TabulatorHostOptions<T> {
   readonly index?: EntityIdentity<T>;
   readonly columns?: Readonly<Record<string, string>>;
   readonly selection?: boolean;
+  readonly dataScope?: 'complete' | 'window';
   readonly onExternalEntity?: (entity: T) => void;
   readonly onExternalRemoval?: (key: EntityKey) => void;
   readonly onDestroy?: () => void;
@@ -27,7 +28,7 @@ export function tabulatorHost<T extends object>(
   table: Tabulator,
   options: TabulatorHostOptions<T>,
 ): TabulatorConnection<T> {
-  const rows = new Map<EntityKey, RowComponent>();
+  let rows = new Map<EntityKey, RowComponent>();
   let previous = new Map<EntityKey, T>();
   let detached = false,
     reflecting = 0;
@@ -42,8 +43,15 @@ export function tabulatorHost<T extends object>(
     for (const key of keys) {
       const entity = previous.get(key);
       if (own.has(key) && own.get(key) === entity) continue;
-      if (entity === undefined) options.onExternalRemoval?.(key);
-      else options.onExternalEntity?.(entity);
+      if (entity === undefined) {
+        if (
+          (options.dataScope ??
+            (table.options.paginationMode === 'remote'
+              ? 'window'
+              : 'complete')) === 'complete'
+        )
+          options.onExternalRemoval?.(key);
+      } else options.onExternalEntity?.(entity);
     }
   };
   const index = options.index ?? options.identity;
@@ -57,7 +65,7 @@ export function tabulatorHost<T extends object>(
   };
   const rebuild = (notify: boolean) => {
     const current = new Map<EntityKey, T>();
-    rows.clear();
+    const nextRows = new Map<EntityKey, RowComponent>();
     for (const row of table.getRows()) {
       const entity = row.getData() as T,
         key = options.identity(entity);
@@ -74,8 +82,9 @@ export function tabulatorHost<T extends object>(
           'Configure an index function matching the Tabulator index field.',
         );
       current.set(key, entity);
-      rows.set(key, row);
+      nextRows.set(key, row);
     }
+    rows = nextRows;
     const old = previous;
     previous = current;
     if (notify) {
@@ -114,7 +123,7 @@ export function tabulatorHost<T extends object>(
     return entity !== undefined && key !== undefined ? { key, entity } : null;
   };
   const refresh = () => {
-    if (!detached) rebuild(true);
+    if (!detached && !reflecting) rebuild(true);
   };
   table.on('dataProcessed', refresh);
   table.on('dataChanged', refresh);
@@ -138,13 +147,38 @@ export function tabulatorHost<T extends object>(
   };
   table.on('tableDestroyed', destroyed);
   const hasSelection =
-    options.selection ?? table.options.selectableRows !== false;
+    options.selection ??
+    (table.options.selectableRows === true ||
+      (typeof table.options.selectableRows === 'number' &&
+        table.options.selectableRows > 0));
   const capabilities: PresentationCapabilities<T> = {
     binding: { resolve },
     reflection: {
+      async reflectMany(updates) {
+        ensure();
+        reflecting++;
+        table.blockRedraw();
+        try {
+          for (const update of updates)
+            await capabilities.reflection!.reflectUpdate(
+              update.previous,
+              update.current,
+            );
+        } finally {
+          try {
+            table.restoreRedraw();
+          } finally {
+            reflecting--;
+            if (!reflecting && !detached) rebuild(true);
+          }
+        }
+      },
       async reflectCreate(entity) {
         ensure();
-        if (rows.has(options.identity(entity)) || table.getRow(index(entity)))
+        if (
+          rows.has(options.identity(entity)) ||
+          table.getRows().some((row) => row.getIndex() === index(entity))
+        )
           throw editorError(
             'host',
             'duplicate-entity-key',
@@ -154,17 +188,18 @@ export function tabulatorHost<T extends object>(
         reflecting++;
         try {
           await table.addRow(entity);
-          rebuild(true);
         } finally {
           reflecting--;
-          flush();
+          if (!reflecting && !detached) rebuild(true);
         }
       },
       async reflectUpdate(previous, current) {
         const source = row(options.identity(previous)),
           next = source.getNextRow(),
           selected = source.isSelected();
-        const collision = table.getRow(index(current));
+        const collision = table
+          .getRows()
+          .find((row) => row.getIndex() === index(current));
         if (
           (rows.has(options.identity(current)) &&
             options.identity(previous) !== options.identity(current)) ||
@@ -182,16 +217,26 @@ export function tabulatorHost<T extends object>(
           await source.delete();
           const successor =
             next && table.getRows().includes(next) ? next : undefined;
-          const replacement = await table.addRow(
-            current,
-            successor ? true : false,
-            successor,
-          );
+          let replacement: RowComponent;
+          try {
+            replacement = await table.addRow(
+              current,
+              successor ? true : false,
+              successor,
+            );
+          } catch (cause) {
+            const restored = await table.addRow(
+              previous,
+              successor ? true : false,
+              successor,
+            );
+            if (selected) restored.select();
+            throw cause;
+          }
           if (selected) replacement.select();
-          rebuild(true);
         } finally {
           reflecting--;
-          flush();
+          if (!reflecting && !detached) rebuild(true);
         }
       },
       async reflectRemove(entity) {
@@ -199,10 +244,9 @@ export function tabulatorHost<T extends object>(
         reflecting++;
         try {
           await row(options.identity(entity)).delete();
-          rebuild(true);
         } finally {
           reflecting--;
-          flush();
+          if (!reflecting && !detached) rebuild(true);
         }
       },
     },

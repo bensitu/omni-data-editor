@@ -9,3 +9,5 @@ Reflection methods return promises and display the complete canonical entity, in
 External refresh callbacks can invoke editor.notifyExternalEntity or notifyExternalRemoval. Keep independent immutable baselines when the host mutates its data in place. Detach removes only the adapter's own listeners and leaves the host instance under application ownership.
 
 The reusable behavioral suite in tests/host-contract/suite.ts runs against real DataTables and Tabulator harnesses. New integrations should provide equivalent create, update, remove, selection, sort, notification and cleanup behavior using their actual APIs. Tests and examples consume public exports, and production packages never depend on test helpers.
+
+A host may implement `reflection.reflectMany(updates)` to apply multiple `{ previous, current }` replacements with one redraw. The runtime commits canonical entity state before invoking this method. One rejection reports a reflection failure for the affected group; server persistence remains committed. Hosts without this capability receive sequential single-entity reflection calls.

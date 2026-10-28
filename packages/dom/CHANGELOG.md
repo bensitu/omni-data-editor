@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Expose optional bulk canonical update reflection for host integrations.
+
 - Preserve numeric input spelling, interpolate issue parameters, and safely resolve catalog keys.
 - Keep conflict actions available with silent notifications and retain unknown-result feedback.
 

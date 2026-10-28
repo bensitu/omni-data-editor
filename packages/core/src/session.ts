@@ -49,6 +49,10 @@ export interface SessionEnvironment<T> {
     current: T,
     sessionId: string,
   ): Promise<ReflectionStatus>;
+  reflectMany(
+    updates: readonly { key: EntityKey; previous: T; current: T }[],
+    sessionId: string,
+  ): Promise<readonly { key: EntityKey; reflection: ReflectionStatus }[]>;
 }
 
 export class Session<T> implements EditSession<T> {
@@ -1077,15 +1081,8 @@ export class Session<T> implements EditSession<T> {
         operationId: context.operationId,
         entity: item.current,
       });
-      reflections.push({
-        key: item.key,
-        reflection: await this.env.reflect(
-          item.previous,
-          item.current,
-          this.id,
-        ),
-      });
     }
+    reflections.push(...(await this.env.reflectMany(committed, this.id)));
     return { status: 'batch', result, reflections };
   }
 

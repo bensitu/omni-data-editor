@@ -174,3 +174,47 @@ it('activates an offscreen virtual row before inline editing', async () => {
     element.remove();
   }
 });
+
+it('restores a row after replacement failure and omits highlight-only selection', async () => {
+  const element = document.createElement('div');
+  document.body.append(element);
+  const data = [
+    { id: 1, name: 'Ada' },
+    { id: 2, name: 'Grace' },
+    { id: 3, name: 'Lin' },
+  ];
+  const table = new TabulatorFull(element, {
+    data,
+    columns: [{ field: 'name', title: 'Name' }],
+  });
+  await new Promise<void>((resolve) => table.on('tableBuilt', resolve));
+  const host = tabulatorHost<Entity>(table, {
+    identity: (entity) => entity.id,
+  });
+  try {
+    expect(host.capabilities.selection).toBeUndefined();
+    vi.spyOn(table, 'addRow').mockRejectedValueOnce(
+      new Error('Rendering unavailable'),
+    );
+    await expect(
+      host.capabilities.reflection!.reflectUpdate(data[1]!, {
+        id: 2,
+        name: 'Canonical',
+      }),
+    ).rejects.toThrow(/Rendering unavailable/);
+    expect(table.getData().map((entity: Entity) => entity.id)).toEqual([
+      1, 2, 3,
+    ]);
+    await host.capabilities.reflection!.reflectMany!([
+      { previous: data[0]!, current: { id: 1, name: 'First' } },
+      { previous: data[2]!, current: { id: 3, name: 'Last' } },
+    ]);
+    expect(table.getData().map((entity: Entity) => entity.id)).toEqual([
+      1, 2, 3,
+    ]);
+  } finally {
+    host.detach();
+    table.destroy();
+    element.remove();
+  }
+});

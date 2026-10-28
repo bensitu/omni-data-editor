@@ -21,3 +21,7 @@ Selection, binding, reflection, field anchors, focus and viewport capabilities u
 External updates and removals observed during asynchronous reflection are delivered after reflection completes. Expected canonical changes do not generate external notifications. If the row following a replacement disappears while the original is being deleted, the replacement is appended to the table.
 
 External `replaceData` refreshes notify the editor using new immutable data objects. When using in place update APIs, retain independent immutable editing entities and explicitly notify canonical changes so historical baselines remain available. Detaching releases adapter listeners without destroying the Tabulator instance.
+
+Bulk reflection suspends redraw and identity rebuilds until the canonical replacements finish. Replacements retain complete canonical objects; update merging would preserve obsolete properties. A failed insertion attempts to restore the original row before reporting the reflection error. The default highlight-only row setting does not expose selection capability.
+
+Use `dataScope: 'window'` for partial datasets. Remote pagination selects window scope by default, so rows leaving the loaded page are not reported as deleted. Applications provide authoritative deletion notifications for unloaded data.

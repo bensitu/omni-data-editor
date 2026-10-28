@@ -20,6 +20,9 @@ import { configurationError, destroyedError, editorError } from './errors.js';
 import { safePath } from './fields.js';
 
 interface Reflection<T> {
+  reflectMany?(
+    updates: readonly { readonly previous: T; readonly current: T }[],
+  ): Promise<void>;
   reflectCreate(entity: T): Promise<void>;
   reflectUpdate(previous: T, current: T): Promise<void>;
   reflectRemove(entity: T): Promise<void>;
@@ -355,6 +358,43 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
         void reflect(previous, entity, record.sessionId);
       },
       reflect,
+      async reflectMany(updates, sessionId) {
+        const reflection = (
+          host?.capabilities as { reflection?: Reflection<T> } | undefined
+        )?.reflection;
+        if (!updates.length) return [];
+        if (!reflection?.reflectMany || destroyed) {
+          const results = [];
+          for (const update of updates)
+            results.push({
+              key: update.key,
+              reflection: await reflect(
+                update.previous,
+                update.current,
+                sessionId,
+              ),
+            });
+          return results;
+        }
+        let status: ReflectionStatus;
+        try {
+          await reflection.reflectMany(updates);
+          status = { status: 'applied' };
+        } catch (cause) {
+          const error = editorError(
+            'host',
+            'reflection-failed',
+            'The saved data could not be displayed by the host.',
+            cause,
+          );
+          emit('host:reflection-failed', { sessionId, error });
+          status = { status: 'failed', error };
+        }
+        return updates.map((update) => ({
+          key: update.key,
+          reflection: status,
+        }));
+      },
     });
     session = current;
     emit('session:opened', { sessionId: current.id, mode });

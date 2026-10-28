@@ -11,6 +11,9 @@ Planned version: 0.1.1.
 
 ### Fixed
 
+- Apply confirmed host updates in batches, avoid redundant identity rebuilds, and preserve adapter mappings when input validation fails.
+- Restore Tabulator rows after replacement errors, report selection capability accurately, and distinguish windowed data from authoritative removal.
+
 - Preserve numeric input spelling, interpolate validation parameters, and keep conflict actions keyboard accessible.
 - Retain native forms after unknown save results, handle external dialog closure, and recover presentation cleanup.
 - Close asynchronous searches on blur and support semantic equality for structured selection values.
