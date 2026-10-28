@@ -184,8 +184,44 @@ const stringValue = (value: unknown): value is string =>
   typeof value === 'string';
 export const textField = factory('text', stringValue);
 export const textareaField = factory('textarea', stringValue);
-export const dateField = factory('date', stringValue);
-export const dateTimeField = factory('datetime-local', stringValue);
+const dateValue = (value: unknown): value is string => {
+  if (value === '') return true;
+  if (typeof value !== 'string') return false;
+  const parts = /^(\d{4,})-(\d{2})-(\d{2})$/.exec(value);
+  if (!parts) return false;
+  const year = Number(parts[1]),
+    month = Number(parts[2]),
+    day = Number(parts[3]);
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return (
+    Number.isSafeInteger(year) &&
+    year > 0 &&
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    day <= days[month - 1]!
+  );
+};
+export const dateField = factory('date', dateValue);
+export const dateTimeField = factory(
+  'datetime-local',
+  (value: unknown): value is string => {
+    if (value === '') return true;
+    if (typeof value !== 'string') return false;
+    const parts =
+      /^(\d{4,}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?$/.exec(
+        value,
+      );
+    return (
+      !!parts &&
+      dateValue(parts[1]) &&
+      Number(parts[2]) < 24 &&
+      Number(parts[3]) < 60 &&
+      (parts[4] === undefined || Number(parts[4]) < 60)
+    );
+  },
+);
 export const hiddenField = factory(
   'hidden',
   (_value: unknown): _value is unknown => true,

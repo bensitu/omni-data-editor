@@ -21,3 +21,5 @@ An unknown create result blocks another create until reconciliation; it does not
 Unknown-result snapshots retain their draft and `uncertainties`, including the original `cause` when available. Applications may inspect diagnostics through the configured logger and uncertainty events; diagnostic causes can contain application-specific details. A synchronous exception does not prove that no write was dispatched. Structured `certainty: 'not-committed'` is required to establish that guarantee. Late successful results emit canonical events and update an attached host.
 
 Presentation contexts expose the session cancellation signal. Asynchronous integrations should stop and settle their mounting work when cancelled. Disposal waits for outstanding integration work and requires idempotent cleanup.
+
+A single-entity submission may persist an unchanged candidate for server-side normalization. Headless drafting and validation do not require persistence; a missing operation port is reported when submission is attempted. Unknown identities remain distinct: numeric and string keys are not interchangeable.

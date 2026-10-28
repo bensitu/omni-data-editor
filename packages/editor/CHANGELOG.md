@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Re-export the complete public core and DOM APIs for custom persistence and integration implementations.
+
 - Include consistent entity drafts, empty native field values, localized form feedback and resilient presentation cleanup.
 - Update synchronized public dependencies to 0.1.1.
 

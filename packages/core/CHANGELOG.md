@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Validate calendar dates and local date-time components without implicit timezone conversion.
+
 - Prefer optional host bulk reflection after committing all successful batch results.
 
 - Isolate uncertain creates, validate reconciliation and mutation results, reflect late success, and confirm authoritative deletions.

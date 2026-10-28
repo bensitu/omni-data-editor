@@ -142,12 +142,10 @@ it('reflects multiple canonical rows with one draw and keeps window changes sepa
   table.on('draw', draws);
   try {
     await host.capabilities.reflection!.reflectMany!(
-      data
-        .slice(0, 20)
-        .map((previous) => ({
-          previous,
-          current: { id: previous.id, name: 'Canonical' },
-        })),
+      data.slice(0, 20).map((previous) => ({
+        previous,
+        current: { id: previous.id, name: 'Canonical' },
+      })),
     );
     expect(draws).toHaveBeenCalledTimes(1);
     expect(table.row(0).data()).toEqual({ id: 0, name: 'Canonical' });

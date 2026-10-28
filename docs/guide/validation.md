@@ -12,6 +12,8 @@ Built-in fields accept `null` and `undefined` as empty semantic values. Required
 
 Field validators are skipped when `visibleWhen` returns false for that candidate. Entity and schema validators still validate the complete entity. Disabled and read-only fields retain their domain validation; conditional entity rules should explicitly express when a value is applicable. `validationConcurrency` limits simultaneous entity validation (default: 8); validators receive cancellation signals when an operation becomes obsolete or a parallel validator fails.
 
-Built-in required text follows native presence semantics: whitespace is a value. Use a custom validator for trimmed text or additional date, text-length, or domain constraints. Equality is configurable for structured values. Snapshots remain reference-stable between notifications and expose immutable data; applications must not mutate their maps, sets or referenced entities.
+Built-in required text follows native presence semantics: whitespace is a value. Use a custom validator for trimmed text or additional date-range, text-length, or domain constraints. Equality is configurable for structured values. Snapshots remain reference-stable between notifications and expose immutable data; applications must not mutate their maps, sets or referenced entities.
 
 The default numeric codec uses a dot decimal separator and does not accept grouping separators. Configure `presentation: { decimalSeparator: ',' }` on a number field for comma decimal input. Renderer input spelling is preserved during semantic updates; programmatic changes replace it and clear obsolete parsing errors. Validation message parameters use the same catalog interpolation as field labels.
+
+Built-in date fields validate calendar dates in `YYYY-MM-DD` form. Local date-time fields validate a calendar date and a local time, without timezone conversion. Empty optional values remain valid.

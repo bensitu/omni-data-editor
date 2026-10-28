@@ -106,6 +106,7 @@ export class Session<T> implements EditSession<T> {
       this.candidates = [...entities];
       this.draftCache = undefined;
     }
+    this.snapshot();
     this.move('editing');
     for (const [key, entity] of this.deferredExternal)
       this.external(entity, key);
@@ -241,7 +242,13 @@ export class Session<T> implements EditSession<T> {
     try {
       while (this.publishPending) {
         this.publishPending = false;
-        const snapshot = this.snapshot();
+        let snapshot: SessionSnapshot<T>;
+        try {
+          snapshot = this.snapshot();
+        } catch (cause) {
+          this.diagnose('snapshot-failed', cause);
+          break;
+        }
         for (const listener of [...this.listeners]) {
           try {
             listener(snapshot);
@@ -467,6 +474,7 @@ export class Session<T> implements EditSession<T> {
                   this.candidates[index]!,
                   revision,
                   operation.controller.signal,
+                  this.mode,
                 );
               }
             };

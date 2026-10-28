@@ -2,6 +2,7 @@ import type {
   EditorOptions,
   ValidationIssue,
   ValidatorResult,
+  SessionMode,
 } from './types.js';
 
 export async function validateCandidate<T>(
@@ -10,6 +11,7 @@ export async function validateCandidate<T>(
   candidate: T,
   revision: number,
   signal: AbortSignal,
+  mode: SessionMode = entity === null ? 'create' : 'edit',
 ): Promise<readonly ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
   const collect = (
@@ -33,7 +35,7 @@ export async function validateCandidate<T>(
       candidate,
       fieldId: field.id,
       revision,
-      mode: entity === null ? ('create' as const) : ('edit' as const),
+      mode,
       values,
     };
     if (field.visibleWhen?.(predicate) === false) continue;

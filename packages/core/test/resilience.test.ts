@@ -1,11 +1,28 @@
 import { expect, it, vi } from 'vitest';
-import { createEditor, textField, numberField } from '../src/index.js';
+import {
+  createEditor,
+  textField,
+  numberField,
+  dateField,
+  dateTimeField,
+} from '../src/index.js';
 import { writePath, readPath } from '../src/fields.js';
 
 type Entity = { id: number; name: string; amount: number; version?: number };
 const entity: Entity = { id: 1, name: 'Ada', amount: 10, version: 1 };
 const fields = [textField<Entity>('name'), numberField<Entity>('amount')];
 const identity = (value: Entity) => value.id;
+
+it('validates calendar dates and local date-time values without timezone conversion', async () => {
+  type Dates = { date: string; local: string };
+  const session = createEditor({
+    fields: [dateField<Dates>('date'), dateTimeField<Dates>('local')],
+  }).edit({ date: '2026-02-29', local: '2026-01-01T24:00' });
+  expect((await session.validate()).issues).toHaveLength(2);
+  session.set('date', '2024-02-29');
+  session.set('local', '2026-01-01T23:59:59.123');
+  expect((await session.validate()).valid).toBe(true);
+});
 
 it('refreshes unchanged registered values without interrupting local edits', () => {
   const editor = createEditor({ fields, identity });
@@ -156,7 +173,10 @@ it('skips hidden field validation and bounds concurrent entity validation', asyn
     identity,
     validationConcurrency: 2,
     fields: [
-      textField<Entity>('name', { required: true, visibleWhen: () => false }),
+      textField<Entity>('name', {
+        required: true,
+        visibleWhen: ({ mode }) => mode !== 'multi-edit',
+      }),
     ],
     validators: [
       async () => {
@@ -191,4 +211,29 @@ it('creates arrays for numeric paths and preserves sparse elements without trave
   );
   expect(() => writePath({ items }, ['items', 'length'], 0)).toThrow(/length/);
   expect(readPath({}, ['toString'])).toBeUndefined();
+});
+
+it('keeps a confirmed server success when canonical accessors cannot render a snapshot', async () => {
+  let unavailable = false;
+  const editor = createEditor({
+    fields: [
+      {
+        ...fields[0]!,
+        read: (value: Entity) => {
+          if (unavailable) throw new Error('Accessor unavailable');
+          return value.name;
+        },
+      },
+    ],
+    persistence: {
+      update: async ({ candidate }) => {
+        unavailable = true;
+        return { ok: true, entity: candidate };
+      },
+    },
+  });
+  const session = editor.edit(entity);
+  expect(await session.submit()).toMatchObject({ status: 'committed', entity });
+  unavailable = false;
+  expect(session.snapshot().phase).toBe('committed');
 });

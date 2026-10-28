@@ -18,6 +18,7 @@
 }
 :where(.omnidataeditor-dialog) {
   width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
   max-height: calc(100dvh - 2rem);
   overflow: auto;
   box-shadow: 0 1rem 4rem #15284133;

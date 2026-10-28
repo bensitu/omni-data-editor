@@ -163,6 +163,11 @@ export function inline<T>(
         root.append(form.element);
         target.append(root);
         const currentForm = form;
+        const focusScope = target.getRootNode();
+        const activeElement = () =>
+          focusScope instanceof ShadowRoot
+            ? focusScope.activeElement
+            : document.activeElement;
         let ownedPointer = false;
         const onPointerDown = (event: PointerEvent) => {
           ownedPointer = currentForm.surfaces.contains(event.target);
@@ -183,7 +188,7 @@ export function inline<T>(
             if (
               ownedPointer ||
               token !== generation ||
-              currentForm.surfaces.contains(document.activeElement)
+              currentForm.surfaces.contains(activeElement())
             )
               return;
             if (options.blurBehavior === 'cancel')
@@ -195,11 +200,30 @@ export function inline<T>(
         document.addEventListener('pointerup', onPointerEnd, true);
         document.addEventListener('pointercancel', onPointerEnd, true);
         document.addEventListener('focusout', onFocusOut);
+        if (focusScope instanceof ShadowRoot) {
+          focusScope.addEventListener('focusout', onFocusOut as EventListener);
+          focusScope.addEventListener(
+            'pointerdown',
+            onPointerDown as EventListener,
+            true,
+          );
+        }
         releaseFocus = () => {
           document.removeEventListener('pointerdown', onPointerDown, true);
           document.removeEventListener('pointerup', onPointerEnd, true);
           document.removeEventListener('pointercancel', onPointerEnd, true);
           document.removeEventListener('focusout', onFocusOut);
+          if (focusScope instanceof ShadowRoot) {
+            focusScope.removeEventListener(
+              'focusout',
+              onFocusOut as EventListener,
+            );
+            focusScope.removeEventListener(
+              'pointerdown',
+              onPointerDown as EventListener,
+              true,
+            );
+          }
         };
         root.addEventListener('keydown', (event) => {
           if (event.key === 'Escape' && !event.defaultPrevented) {
@@ -222,8 +246,10 @@ export function inline<T>(
           if (
             token === generation &&
             (!mountedTarget.isConnected || !root?.isConnected)
-          )
+          ) {
             context.dispatch({ type: 'cancel', reason: 'anchor-removed' });
+            void close().catch(() => undefined);
+          }
         });
         const scope = target.getRootNode();
         observer.observe(scope instanceof ShadowRoot ? scope : document.body, {

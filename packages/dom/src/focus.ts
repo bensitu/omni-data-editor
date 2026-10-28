@@ -29,6 +29,7 @@ export function createFocusSurfaceRegistry(): FocusSurfaceRegistry {
 export function browserFocus(): FocusCapability {
   return {
     captureFocus() {
+      if (typeof document === 'undefined') return null;
       return document.activeElement instanceof HTMLElement
         ? { token: document.activeElement }
         : null;
@@ -53,6 +54,8 @@ export function browserViewport(): ViewportCapability {
       return (
         rect.width > 0 &&
         rect.height > 0 &&
+        rect.right > 0 &&
+        rect.left < innerWidth &&
         rect.bottom > 0 &&
         rect.top < innerHeight
       );

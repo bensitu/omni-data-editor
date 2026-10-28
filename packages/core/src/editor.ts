@@ -233,7 +233,8 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
   const pendingFor = (entities: readonly T[], mode: string) =>
     [...uncertainties.values()].filter(
       (record) =>
-        (record.entityKey === undefined && mode === 'create') ||
+        (record.entityKey === undefined &&
+          (record.kind === 'create' ? mode === 'create' : mode !== 'create')) ||
         (mode !== 'create' &&
           entities.some((entity) => identity(entity) === record.entityKey)),
     );
@@ -556,7 +557,24 @@ export function createEditor<T>(options: EditorOptions<T>): EditorRuntime<T> {
         try {
           const request = Promise.resolve(
             options.persistence.remove({ entity }, ctx),
-          );
+          ).then((outcome) => {
+            if (
+              !outcome ||
+              typeof outcome.ok !== 'boolean' ||
+              (!outcome.ok &&
+                (!['conflict', 'forbidden', 'transport'].includes(
+                  outcome.kind,
+                ) ||
+                  (outcome.kind === 'transport' &&
+                    !['unknown', 'not-committed'].includes(outcome.certainty))))
+            )
+              throw editorError(
+                'invariant',
+                'invalid-mutation-result',
+                'Persistence must return a structured deletion result.',
+              );
+            return outcome;
+          });
           request.then(
             (outcome) => {
               if (!controller.signal.aborted || destroyed) return;

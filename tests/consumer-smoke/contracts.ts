@@ -7,7 +7,7 @@ import type {
   RemoveOutcome,
   StandardSchemaV1Like,
   BatchMutationOutcome,
-} from '@omnidataeditor/core';
+} from '@omnidataeditor/editor';
 type Employee = { id: number; name: string };
 export function consume(
   editor: EditorRuntime<Employee>,

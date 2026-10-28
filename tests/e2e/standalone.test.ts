@@ -7,6 +7,9 @@ test('edits, validates and removes an entity through native forms', async ({
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByLabel('Name', { exact: true }).fill('Grace Hopper');
+  await page.getByLabel('Salary').fill('');
+  await page.getByLabel('Salary').pressSequentially('-0.5');
+  await expect(page.getByLabel('Salary')).toHaveValue('-0.5');
   await page.getByLabel('Salary').fill('-');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
