@@ -8,7 +8,7 @@ export function run(command, args, cwd = process.cwd(), options = {}) {
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(
-      `${command} ${args.join(' ')} exited with ${result.status ?? result.signal}.`,
+      `${command} ${args.join(' ')} exited with ${result.status ?? result.signal}.${result.stderr ? `\n${String(result.stderr).trim()}` : ''}`,
     );
   return result;
 }

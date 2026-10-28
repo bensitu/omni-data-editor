@@ -29,12 +29,13 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: npm
     permissions:
       contents: read
+      attestations: read
       id-token: write
     steps:
       - name: Check out publication tooling

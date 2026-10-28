@@ -35,3 +35,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). For 
 ## Community and reporting
 
 Participation follows the [code of conduct](CODE_OF_CONDUCT.md). Use the [support guide](SUPPORT.md) for questions and issue reporting. Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
+
+## Release publication
+
+Create a release draft from the verified source on `main`. The build signs provenance for the package archives before attaching them to the release. Publish the reviewed GitHub release, then start the npm publication workflow with the matching `vX.Y.Z` tag selected as its source ref. Publication verifies the source commit, archive integrity and signed build provenance from the release workflow. It publishes the original archives and repairs matching distribution tags when retrying an interrupted publication.
+
+Documentation deployment waits for the shared source and browser checks and completes without cancelling an active Pages deployment. The documentation toolchain uses scoped dependency overrides; update them together with the lockfile and verify the documentation build.

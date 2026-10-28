@@ -76,7 +76,15 @@ export function verifyPublishedArtifact(artifact, metadata, tag) {
 
 export async function publishReleaseArtifacts(
   artifacts,
-  { inspect, publish, tag, wait = delay, attempts = 61, onStatus = () => {} },
+  {
+    inspect,
+    publish,
+    setTag,
+    tag,
+    wait = delay,
+    attempts = 61,
+    onStatus = () => {},
+  },
 ) {
   if (
     !artifacts.length ||
@@ -85,17 +93,15 @@ export async function publishReleaseArtifacts(
     throw new Error('Release packages must be nonempty and unique.');
   const existing = await Promise.all(artifacts.map(inspect));
   existing.forEach((metadata, index) => {
-    if (metadata)
-      verifyPublishedArtifact(
-        artifacts[index],
-        metadata,
-        metadata.tagVersion === undefined ? undefined : tag,
-      );
+    if (metadata) verifyPublishedArtifact(artifacts[index], metadata);
   });
   for (let index = 0; index < artifacts.length; index++) {
     const artifact = artifacts[index];
-    if (existing[index]) onStatus(artifact, 'archive already matches');
-    else {
+    if (existing[index]) {
+      onStatus(artifact, 'archive already matches');
+      if (existing[index].tagVersion !== artifact.version && setTag)
+        await setTag(artifact, tag);
+    } else {
       await publish(artifact);
       onStatus(artifact, 'submitted');
     }
@@ -122,12 +128,16 @@ export async function publishReleaseArtifacts(
 }
 
 async function publishCli() {
-  requireReleaseWorkflow();
+  requireReleaseWorkflow({ allowTag: true });
   const { values } = parseArgs({
     options: { version: { type: 'string' }, tag: { type: 'string' } },
   });
   const { version, tag } = validateReleaseTag(values.version, values.tag);
   const releaseTag = `v${version}`;
+  if (process.env.GITHUB_REF !== `refs/tags/${releaseTag}`)
+    throw new Error(
+      'Select the matching release tag when starting publication.',
+    );
   const release = JSON.parse(
     capture('gh', [
       'release',
@@ -146,6 +156,10 @@ async function publishCli() {
   const commit = JSON.parse(
     capture('gh', ['api', `repos/${repository}/commits/${releaseTag}`]),
   ).sha;
+  if (process.env.GITHUB_SHA !== commit)
+    throw new Error(
+      'Publication must run from the exact release source commit.',
+    );
   const packages = await readPackages(commit);
   const expectedAssets = new Set([
     'release-manifest.json',
@@ -189,9 +203,32 @@ async function publishCli() {
     version,
     commit,
   );
+  for (const artifact of artifacts)
+    capture('gh', [
+      'attestation',
+      'verify',
+      artifact.path,
+      '--repo',
+      repository,
+      '--signer-workflow',
+      `${repository}/.github/workflows/draft-release.yml`,
+      '--source-digest',
+      commit,
+      '--deny-self-hosted-runners',
+    ]);
   await publishReleaseArtifacts(artifacts, {
     inspect: (artifact) => inspectPublishedArtifact(artifact, tag),
     tag,
+    setTag: async (artifact) => {
+      run('npm', [
+        'dist-tag',
+        'add',
+        `${artifact.name}@${artifact.version}`,
+        tag,
+        '--registry',
+        registry,
+      ]);
+    },
     publish: async (artifact) => {
       run('npm', [
         'publish',

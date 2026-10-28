@@ -11,6 +11,10 @@ Planned version: 0.1.1.
 
 ### Fixed
 
+- Verify signed release archive provenance from the exact publication source and recover existing npm distribution tags.
+- Wait for shared checks before documentation deployment and preserve active deployments.
+- Resolve documentation toolchain advisories with scoped dependency updates and expose complete core and DOM exports from the editor entry point.
+
 - Apply confirmed host updates in batches, avoid redundant identity rebuilds, and preserve adapter mappings when input validation fails.
 - Restore Tabulator rows after replacement errors, report selection capability accurately, and distinguish windowed data from authoritative removal.
 
@@ -22,10 +26,6 @@ Planned version: 0.1.1.
 - Keep subscription delivery ordered under reentrant commands and recover from application accessor failures.
 - Refresh unchanged registered values without conflicts, bound validation concurrency, and retain unaffected targets after remote deletion.
 - Preserve sparse arrays and numeric paths in immutable field writers and reject primitive traversal.
-
-## [0.1.0]
-
-### Fixed
 
 - Keep multiple-entity draft values consistent with canonical results and conflict decisions.
 - Support empty semantic values in built-in fields and validate select configuration.

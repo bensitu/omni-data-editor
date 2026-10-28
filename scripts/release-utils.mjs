@@ -101,8 +101,12 @@ export async function readPackages(ref) {
   if (ref && !/^[a-f0-9]{40}$/.test(ref))
     throw new Error('Use a complete source commit identifier.');
   const directories = ref
-    ? capture('git', ['ls-tree', '--name-only', `${ref}:packages`]).split('\n')
-    : await readdir('packages');
+    ? capture('git', ['ls-tree', '-d', '--name-only', `${ref}:packages`]).split(
+        '\n',
+      )
+    : (await readdir('packages', { withFileTypes: true }))
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name);
   const packages = [];
   for (const directory of directories) {
     if (!/^[a-z0-9-]+$/.test(directory))
@@ -143,14 +147,17 @@ export function validatePackages(packages, input) {
   return version;
 }
 
-export function requireReleaseWorkflow() {
+export function requireReleaseWorkflow({ allowTag = false } = {}) {
   if (
     process.env.GITHUB_ACTIONS !== 'true' ||
-    process.env.GITHUB_REF !== 'refs/heads/main' ||
+    !(
+      process.env.GITHUB_REF === 'refs/heads/main' ||
+      (allowTag && /^refs\/tags\/v[0-9]/.test(process.env.GITHUB_REF ?? ''))
+    ) ||
     process.env.GITHUB_REPOSITORY !== repository
   )
     throw new Error(
-      'Run this operation through the manual release workflow on main.',
+      'Run this operation through the authorized manual release workflow.',
     );
 }
 
