@@ -6,3 +6,6 @@ allowBuilds:
 overrides:
   'vitepress>vite': 6.4.5
   '@vitejs/plugin-vue@5>vite': 6.4.5
+  'minimatch@10': 11.0.3
+patchedDependencies:
+  typedoc@0.28.20: patches/typedoc@0.28.20.patch
