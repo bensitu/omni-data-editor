@@ -10,9 +10,11 @@ pnpm dev
 
 The development server includes the team directory at `/showcase/` and focused integration examples. See the [playground guide](docs/guide/playground.md) for details. User-facing guides and reference material are indexed in [docs/index.md](docs/index.md).
 
-`pnpm verify` checks formatting, lint, types, behavior, package distribution, consumer builds and documentation. Use the relevant individual commands during development. `pnpm docs:api` generates the API reference, `pnpm docs:build` builds the documentation, and `pnpm package:pages` builds the combined documentation and examples site.
+`pnpm verify` checks dependency security, formatting, lint, types, behavior, package distribution, consumer builds and documentation. `pnpm check:security` audits all workspace dependencies, including development and optional dependencies, and fails on high or critical advisories or registry errors. Use the relevant individual commands during development. `pnpm docs:api` generates the API reference, `pnpm docs:build` builds the documentation, and `pnpm package:pages` builds the combined documentation and examples site.
 
 CI runs source and package checks alongside browser integration tests. Browser tests use the official Playwright container, including its browser binaries and system dependencies. Update the container version and digest in `.github/workflows/checks.yml` when updating Playwright. Release drafts reuse these same checks before preparing archives.
+
+Keep `@types/node` on the Node 24 major used for development and CI. Dependabot ignores major updates for this package; review its major version together with any future Node runtime migration.
 
 Dependabot checks npm workspace dependencies and GitHub Actions every Monday at 09:00 Asia/Tokyo. Routine npm updates wait seven days after publication and group related minor and patch updates; major upgrades remain separate, with React packages updated together. Pull requests target the default branch. Review them and wait for the existing checks before merging. Security updates are grouped separately and do not use the routine update cooldown. Keep Dependabot alerts and security updates enabled in the repository settings. Review pnpm overrides when their upstream dependencies change, and update the Playwright container version and digest together with `@playwright/test`.
 

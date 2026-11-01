@@ -1,5 +1,6 @@
 import { run } from './process.mjs';
 for (const script of [
+  'check:security',
   'format:check',
   'lint',
   'build',

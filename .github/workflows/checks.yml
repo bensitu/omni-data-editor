@@ -30,6 +30,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Check formatting
         run: pnpm format:check
+      - name: Audit production and development dependencies
+        run: pnpm check:security
       - name: Lint source
         run: pnpm lint
       - name: Build packages

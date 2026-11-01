@@ -12,6 +12,9 @@ updates:
     cooldown:
       default-days: 7
     versioning-strategy: increase-if-necessary
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
     groups:
       react:
         patterns:
