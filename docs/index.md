@@ -46,6 +46,6 @@ All public packages use synchronized versions and ESM exports. Import styles exp
 ## Reference
 
 - [Compatibility and runtime requirements](./reference/compatibility.md)
-- [Accessibility](./reference/accessibility.md)
+- [Accessibility integration](./reference/accessibility.md)
 - [Security boundaries](./reference/security.md)
 - [API reference](https://bensitu.github.io/omni-data-editor/api/index.html)
