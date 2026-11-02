@@ -46,6 +46,7 @@ See the [package overview](docs/index.md#packages) to choose individual packages
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
 - [Support](SUPPORT.md)
+- [Accessibility](ACCESSIBILITY.md)
 - [Code of conduct](CODE_OF_CONDUCT.md)
 - [Security policy](SECURITY.md)
 
