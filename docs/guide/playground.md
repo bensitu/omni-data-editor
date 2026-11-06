@@ -12,7 +12,9 @@ pnpm dev
 
 Open `http://127.0.0.1:5173/showcase/`. Use the URL printed by Vite if that port is occupied. The example index at `/` also links to the playground and the focused integrations.
 
-`pnpm build:examples` builds all eight example pages into `dist/examples/`. Serve that directory at the root of a static HTTP server. The generated files use public package exports and explicit theme CSS imports.
+`pnpm build:examples` builds all nine example pages into `dist/examples/`. Serve that directory at the root of a static HTTP server. The generated files use public package exports and explicit theme CSS imports.
+
+The [recovery example](./recovery.md) at `/recovery/` separately demonstrates resettable conflicts, held responses, authoritative reconciliation and selective batch retries.
 
 ## Explore the directory
 

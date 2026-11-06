@@ -14,6 +14,7 @@ OmniDataEditor is a framework independent TypeScript editing engine. It manages 
 | ---------------------------- | ------------------------------------------------- |
 | Validation and field issues  | [Validation](./guide/validation.md)               |
 | Saving and uncertain results | [Persistence](./guide/persistence.md)             |
+| Reproducible recovery flows  | [Recovery example](./guide/recovery.md)           |
 | Concurrent changes           | [Conflicts](./guide/conflicts.md)                 |
 | Batch operations             | [Multiple entities](./guide/multiple-entities.md) |
 | Anchored controls and focus  | [Inline editing](./guide/inline.md)               |

@@ -31,6 +31,7 @@ export default defineConfig({
           'standalone',
           'validation',
           'persistence',
+          'recovery',
           'conflicts',
           'multiple-entities',
           'inline',

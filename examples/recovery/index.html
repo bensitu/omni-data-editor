@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Persistence recovery · OmniDataEditor</title>
+  </head>
+  <body>
+    <main>
+      <a href="/">All examples</a>
+      <h1>Persistence recovery</h1>
+      <p>
+        Explore conflicts, lost responses and partial saves using the real
+        editor runtime.
+      </p>
+      <p class="notice">
+        Simulation only: synthetic data, revision checks and per-entity
+        idempotency live in memory. No network requests are sent. Reloading or
+        resetting discards all data and recovery requirements.
+      </p>
+      <section aria-labelledby="scenarios-heading">
+        <h2 id="scenarios-heading">Choose a scenario</h2>
+        <div class="scenarios">
+          <article>
+            <h3>Concurrent update</h3>
+            <p>
+              Edit a draft, then simulate a remote update. Accept remote values,
+              rebase local edits or merge individual fields.
+            </p>
+            <button data-scenario="conflict">Start conflict</button>
+          </article>
+          <article>
+            <h3>Unknown update</h3>
+            <p>
+              Save once. The server commits but holds its response. Cancel
+              waiting, then reconcile before editing again.
+            </p>
+            <button data-scenario="update">Start unknown update</button>
+          </article>
+          <article>
+            <h3>Unknown create</h3>
+            <p>
+              Create once with a held response. Recover the generated identity
+              by logical mutation ID without creating a duplicate.
+            </p>
+            <button data-scenario="create">Start unknown create</button>
+          </article>
+          <article>
+            <h3>Partial batch with uncertainty</h3>
+            <p>
+              Ada succeeds, Grace is refused and Katherine commits with an
+              unknown result. Reconcile before starting a new write for Grace.
+            </p>
+            <button data-scenario="batch">Start partial batch</button>
+          </article>
+          <article>
+            <h3>Selective retry with known results</h3>
+            <p>
+              Ada and Katherine succeed. Retry only Grace in the same session,
+              preserving its logical mutation ID.
+            </p>
+            <button data-scenario="retry">Start selective retry</button>
+          </article>
+        </div>
+      </section>
+      <section aria-labelledby="recovery-heading">
+        <h2 id="recovery-heading">Recovery controls</h2>
+        <p id="instructions">
+          Choose a scenario to begin. Starting a scenario resets the previous
+          run.
+        </p>
+        <div class="actions">
+          <button id="blocked" disabled>Try blocked operation</button>
+          <button id="reconcile" disabled>Reconcile authoritative data</button>
+          <button id="newer" disabled>Apply newer remote update</button>
+          <button id="release" disabled>Deliver held response</button>
+          <button id="unrelated" disabled>Edit unrelated person</button>
+          <button id="reset">Reset scenario</button>
+        </div>
+        <p id="status" role="status" aria-live="polite">Ready.</p>
+      </section>
+      <div class="data-panels">
+        <section aria-labelledby="server-heading">
+          <h2 id="server-heading">Authoritative server data</h2>
+          <pre id="server"></pre>
+        </section>
+        <section aria-labelledby="host-heading">
+          <h2 id="host-heading">Reflected host data</h2>
+          <pre id="host"></pre>
+        </section>
+      </div>
+      <section aria-labelledby="snapshot-heading">
+        <h2 id="snapshot-heading">Session snapshot</h2>
+        <p>
+          The retained snapshot preserves an uncertain draft, including
+          per-entity batch results.
+        </p>
+        <pre id="snapshot"></pre>
+      </section>
+      <section aria-labelledby="requests-heading">
+        <h2 id="requests-heading">Persistence requests</h2>
+        <pre id="requests"></pre>
+      </section>
+      <section aria-labelledby="writes-heading">
+        <h2 id="writes-heading">Confirmed server writes</h2>
+        <pre id="writes"></pre>
+      </section>
+      <section aria-labelledby="reconciliations-heading">
+        <h2 id="reconciliations-heading">Reconciliation requests</h2>
+        <pre id="reconciliations"></pre>
+      </section>
+      <section aria-labelledby="events-heading">
+        <h2 id="events-heading">Runtime events</h2>
+        <pre id="events"></pre>
+      </section>
+      <div id="presentation"></div>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

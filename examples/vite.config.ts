@@ -10,6 +10,7 @@ const pages = [
   'tabulator-dialog/index.html',
   'tabulator-inline/index.html',
   'async-select/index.html',
+  'recovery/index.html',
 ];
 
 export default defineConfig({

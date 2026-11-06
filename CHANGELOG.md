@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a resettable persistence recovery example covering concurrent changes, unknown update and create results, partial batch recovery and selective retries, with Chromium, Firefox and WebKit regression scenarios.
+
 ### Security
 
 - Check production and development dependencies for high and critical advisories during verification and CI.

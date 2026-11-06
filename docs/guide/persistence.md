@@ -1,5 +1,7 @@
 # Persistence and reconciliation
 
+Try the [recovery example](./recovery.md) for resettable unknown-result and batch recovery scenarios.
+
 Provide create, update and remove functions as needed. Updates receive the original entity, candidate and ordered field changes. Success must return canonical data, including server generated identifiers and normalized values. The runtime commits that data before reflecting it into a host.
 
 A reflection failure is reported in the committed outcome and `host:reflection-failed`. It does not undo server success. A second submit returns busy with the active operation identifier.
