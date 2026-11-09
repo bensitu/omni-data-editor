@@ -179,7 +179,7 @@ importers:
         version: link:../dom
       datatables.net:
         specifier: ^3.1.4
-        version: 3.1.4
+        version: 3.1.5
 
   packages/host-tabulator:
     dependencies:
@@ -1778,9 +1778,6 @@ packages:
 
   datatables.net-select@4.1.1:
     resolution: {integrity: sha512-B5NNGXpJjKYXb8rlLwwSF/x/mRdgFYMS4el715sBYyn2Ovz00CBw5mwjB1NXeaR4DDl0D2dCg7UBh5uvHrXYuw==}
-
-  datatables.net@3.1.4:
-    resolution: {integrity: sha512-tnk14y/AOr0Z1d7avIUvCcOGgqZpeo7B6g6RQiycMQckEMq2FaaZTG1Q1xD6Kci5gpAvdjZInDmbscoiVSTyGw==}
 
   datatables.net@3.1.5:
     resolution: {integrity: sha512-phu9fVz1cOhD7kZDO5Ztj15qwghCkmdwX5AezLi+PxfMtnFAq0itpewvXzdwdr6bOwPqO2zuXsXWUU5x3wQptw==}
@@ -4582,8 +4579,6 @@ snapshots:
   datatables.net-select@4.1.1:
     dependencies:
       datatables.net: 3.1.5
-
-  datatables.net@3.1.4: {}
 
   datatables.net@3.1.5: {}
 
