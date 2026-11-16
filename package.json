@@ -43,12 +43,12 @@
     "@arethetypeswrong/cli": "0.18.5",
     "publint": "0.3.25",
     "typescript": "6.0.3",
-    "tsdown": "0.23.4",
+    "tsdown": "0.23.7",
     "vitest": "5.0.5",
-    "vite": "8.3.5",
+    "vite": "8.3.6",
     "webpack": "5.112.2",
     "webpack-cli": "7.3.1",
-    "next": "16.4.3",
+    "next": "16.4.5",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "eslint": "10.14.0",
@@ -71,7 +71,7 @@
     "@omnidataeditor/presentation-inline": "workspace:*",
     "@omnidataeditor/theme-default": "workspace:*",
     "cross-spawn": "7.0.6",
-    "semver": "7.8.5"
+    "semver": "7.8.6"
   },
   "repository": {
     "type": "git",
